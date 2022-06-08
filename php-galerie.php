@@ -105,13 +105,10 @@ class Photo {
 	function html_thumbnail($width, $height) {
 		$html = <<<HTML
 	<figure class="{$this->classes()}">
-		<a href="{$this->url_original()}">
-			<img src="{$this->url_size($width, $height)}" />
-		</a>
-		<figcaption>
-			<a href="{$this->url_original()}">{$this->title()}</a>
-		</figcaption>
+		<a href="{$this->url_original()}"><img src="{$this->url_size($width, $height)}" /></a>
+		<figcaption><a href="{$this->url_original()}">{$this->title()}</a></figcaption>
 	</figure>
+
 HTML;
 
 		$this->files['files/'.basename($this->original_path)] = $this->path_original();
@@ -135,7 +132,57 @@ HTML;
 class Gallery {
 	public $files_raw = [];
 	public $photos = [];
+	public $galleries = [];
+
+	public $thumbnail = "";
+	public $title = "";
+	public $url = "";
+
 	public $html;
+
+	static function is_gallery($index) {
+		$lines = file($index);
+
+		if (substr($lines[1], 0, 24) == '<html class="php-galerie') {
+			return true;
+		}
+
+		return false;
+	}
+
+	function url_thumbnail() {
+		return $this->thumbnail;
+	}
+
+	function html_thumbnail($width, $height) {
+		$html = <<<HTML
+	<figure class="gallery">
+		<a href="{$this->url}"><img src="{$this->url_thumbnail()}" /></a>
+		<figcaption><a href="{$this->url}">{$this->title}</a></figcaption>
+	</figure>
+
+HTML;
+
+		return $html;
+	}
+
+	function index($index = null) {
+		$lines = file($index);
+
+		if (substr($lines[1], 0, 24) == '<html class="php-galerie') {
+			$dom = new DOMDocument();
+			$dom->loadHTMLFile($index, LIBXML_NOWARNING | LIBXML_NOERROR);
+
+			$this->url = basename(dirname($index));
+			$this->title = $this->url;
+
+			$html = $dom->getElementsByTagName("html")->item(0);
+			$this->thumbnail = $html->attributes->getNamedItem("data-thumbnail-src")->textContent;
+			if ($html->attributes->getNamedItem("data-title")) {
+				$this->title = $html->attributes->getNamedItem("data-title")->textContent;
+			}
+		}
+	}
 
 	function directory($directory) {
 		$files = [];
@@ -147,6 +194,18 @@ class Gallery {
 		}
 
 		$this->files_raw = $files;
+
+		$galleries = [];
+
+		foreach (glob($directory."/*/index.html") as $index) {
+			if (Gallery::is_gallery($index)) {
+				$gallery = new Gallery();
+				$gallery->index($index);
+				$galleries[] = $gallery;
+			}
+		}
+
+		$this->galleries = $galleries;
 	}
 
 	function prepare_files($dynamic) {
@@ -159,11 +218,20 @@ class Gallery {
 		$this->photos = $photos;
 	}
 
+	function thumbnail_base64() {
+		foreach ($this->photos as $photo) {
+			return "data:image/jpeg;base64,".base64_encode(file_get_contents($photo->path_size(250, 250)));
+		}
+
+		return "";
+	}
+
 	function html($dynamic = false) {
 		$this->prepare_files($dynamic);
 
 		$html = <<<HTML
-<html>
+<!DOCTYPE html>
+<html class="php-galerie" data-thumbnail-src="{$this->thumbnail_base64()}">
 <head>
 	<style>
 		body {
@@ -177,24 +245,19 @@ class Gallery {
 		figure {
 			margin: 0;
 			border: 2px white solid;
-					border-radius: 2px;
+			border-radius: 2px;
 		}
 
 		figure.has-title a {
 			font-style: normal;
 		}
 
-		figure a {
-			color: white;
-			text-decoration: none;
+		figure > a {
+			font-size: 0;
 			display: block;
 		}
 
-		figure:hover a {
-			text-decoration: underline;
-		}
-
-		figure a img {
+		figure > a img {
 			width: 100%;
 		}
 
@@ -205,13 +268,24 @@ class Gallery {
 			text-align: center;
 		}
 
+		figure:hover figcaption a {
+			text-decoration: underline;
+		}
+
 		figure figcaption a {
 			padding: 3px;
+			color: white;
+			text-decoration: none;
+			display: block;
 		}
 	</style>
 </head>
 <body>
 HTML;
+
+		foreach ($this->galleries as $gallery) {
+			$html .= $gallery->html_thumbnail(250, 250);
+		}
 
 		foreach ($this->photos as $photo) {
 			$html .= $photo->html_thumbnail(250, 250);
