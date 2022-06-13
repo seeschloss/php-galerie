@@ -154,8 +154,6 @@ class Gallery {
 
 	public $embed_thumbnails = false;
 	public $crop_thumbnails = false;
-
-
 	public $thumbnail_width = 250;
 	public $thumbnail_height = 250;
 
@@ -237,6 +235,10 @@ HTML;
 					if (strpos(basename($subdirectory), ".") !== 0 and strpos(basename($subdirectory), "_") !== 0) {
 						if (Gallery::is_gallery($subdirectory)) {
 							$gallery = new Gallery();
+							$gallery->embed_thumbnails = $this->embed_thumbnails;
+							$gallery->crop_thumbnails = $this->crop_thumbnails;
+							$gallery->thumbnail_width = $this->thumbnail_width;
+							$gallery->thumbnail_height = $this->thumbnail_height;
 							$gallery->read_directory($subdirectory, $recursive, $max_depth - 1);
 							$galleries[] = $gallery;
 						}
