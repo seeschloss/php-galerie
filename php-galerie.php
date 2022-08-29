@@ -430,6 +430,7 @@ CSS;
 <!DOCTYPE html>
 <html class="php-galerie" data-thumbnail-src="{$this->thumbnail_base64()}">
 <head>
+	<meta charset="utf-8" />
 	<style>
 		{$css}
 	</style>
