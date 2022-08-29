@@ -182,7 +182,11 @@ class Gallery {
 	}
 
 	function url_thumbnail() {
-		return $this->thumbnail;
+		if ($this->thumbnail) {
+			return $this->thumbnail->url_size($this->thumbnail_width, $this->thumbnail_height, $this->crop_thumbnails, true);
+		} else {
+			return $this->thumbnail_src;
+		}
 	}
 
 	function html_thumbnail($width, $height) {
@@ -208,7 +212,7 @@ HTML;
 			$this->title = $this->url;
 
 			$html = $dom->getElementsByTagName("html")->item(0);
-			$this->thumbnail = $html->attributes->getNamedItem("data-thumbnail-src")->textContent;
+			$this->thumbnail_src = $html->attributes->getNamedItem("data-thumbnail-src")->textContent;
 			if ($html->attributes->getNamedItem("data-title")) {
 				$this->title = $html->attributes->getNamedItem("data-title")->textContent;
 			}
@@ -227,8 +231,11 @@ HTML;
 		}
 
 		$this->photos = $photos;
-		if (count($this->photos)) {
-			$this->thumbnail = $this->photos[array_key_first($this->photos)]->url_size($this->thumbnail_width, $this->thumbnail_height, $this->crop_thumbnails, true);
+
+		if (file_exists($directory."/.thumbnail.jpg")) {
+			$this->thumbnail = new Photo($directory."/.thumbnail.jpg");
+		} else if (count($this->photos)) {
+			$this->thumbnail = $this->photos[array_key_first($this->photos)];
 		}
 
 		$galleries = [];
@@ -261,8 +268,10 @@ HTML;
 	}
 
 	function thumbnail_base64() {
-		foreach ($this->photos as $photo) {
-			return "data:image/jpeg;base64,".base64_encode($photo->generate_size($this->thumbnail_width, $this->thumbnail_height, $this->crop_thumbnails));
+		if ($this->thumbnail) {
+			return $this->thumbnail->url_size($this->thumbnail_width, $this->thumbnail_height, $this->crop_thumbnails, true);
+		} else foreach ($this->photos as $photo) {
+			return $photo->url_size($this->thumbnail_width, $this->thumbnail_height, $this->crop_thumbnails, true);
 		}
 
 		return "";
