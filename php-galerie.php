@@ -93,7 +93,9 @@ class Photo {
 	}
 
 	function classes() {
-		$classes = [];
+		$classes = [
+			'photo',
+		];
 
 		$title = basename($this->original_path);
 
@@ -134,7 +136,7 @@ HTML;
 		$this->files[basename($this->original_path)] = ['path' => $this->path_original()];
 
 		if (!$embed_thumbnail) {
-			$this->files[".cache/w={$width},h={$height},".basename($this->original_path)] = ['data' => $this->generate_size($width, $height, $crop_thumbnail)];
+			$this->files[$this->url_size($width, $height, $crop_thumbnail, false)] = ['data' => $this->generate_size($width, $height, $crop_thumbnail)];
 		}
 
 		return $html;
@@ -145,8 +147,10 @@ class Gallery {
 	public $files_raw = [];
 	public $photos = [];
 	public $galleries = [];
+	public $parent = null;
 
-	public $thumbnail = "";
+	public $thumbnail = null;
+	public $thumbnail_src = "";
 	public $title = "";
 	public $url = "";
 
@@ -235,6 +239,7 @@ HTML;
 					if (strpos(basename($subdirectory), ".") !== 0 and strpos(basename($subdirectory), "_") !== 0) {
 						if (Gallery::is_gallery($subdirectory)) {
 							$gallery = new Gallery();
+							$gallery->parent = $this;
 							$gallery->embed_thumbnails = $this->embed_thumbnails;
 							$gallery->crop_thumbnails = $this->crop_thumbnails;
 							$gallery->thumbnail_width = $this->thumbnail_width;
@@ -272,11 +277,31 @@ HTML;
 			grid-auto-flow: dense;
 			background-color: black;
 			color: white;
+			margin: 0;
 			/*
 			column-count: auto;
 			column-width: 250px;
 			column-gap: 5px;
 			*/
+		}
+
+		#header {
+			grid-column-start: 1;
+			grid-column-end: -1;
+			justify-self: center;
+			display: grid;
+			grid-template-columns: auto 1fr;
+			grid-gap: 20px;
+			align-items: center;
+		}
+
+		#header h1 {
+			margin: 0;
+			font-size 10pt;
+		}
+
+		#header figure img {
+			max-height: 50px;
 		}
 
 		figure {
@@ -313,6 +338,63 @@ HTML;
 			text-decoration: none;
 			display: block;
 		}
+
+		#popup {
+			position: absolute;
+			width: 100%;
+			height: 100%;
+			background-color: rgba(0, 0, 0, 0.9);
+			display: grid;
+			align-items: center;
+			justify-items: center;
+		}
+
+		#popup img {
+			max-width: 100%;
+			max-height: 100%;
+		}
+
+		#popup #prev, #popup #next {
+			position: absolute;
+			height: 100%;
+			width: 100px;
+			display: grid;
+			align-items: center;
+			opacity: 0.2;
+			cursor: pointer;
+		}
+
+		#popup #prev:hover, #popup #next:hover {
+			opacity: 1;
+		}
+
+		#popup #prev {
+			left: 0;
+		}
+
+		#popup #next {
+			right: 0;
+		}
+
+		#popup #prev:before, #popup #next:before {
+			font-size: 50pt;
+			font-weight: bold;
+			padding: 0 10px;
+			-webkit-text-stroke-width: 2px;
+			-webkit-text-stroke-color: black;
+		}
+
+		#popup #prev:before {
+			content: "◂";
+		}
+
+		#popup #next:before {
+			content: "▸";
+		}
+
+		#popup #next {
+			justify-items: end;
+		}
 CSS;
 
 		if ($this->crop_thumbnails) {
@@ -329,6 +411,12 @@ CSS;
 CSS;
 		}
 
+		$link_parent = "";
+		if ($this->parent) {
+			$this->parent->url = '..';
+			$link_parent = $this->parent->html_thumbnail($this->thumbnail_width, $this->thumbnail_height);
+		}
+
 		$html = <<<HTML
 <!DOCTYPE html>
 <html class="php-galerie" data-thumbnail-src="{$this->thumbnail_base64()}">
@@ -338,6 +426,7 @@ CSS;
 	</style>
 </head>
 <body>
+	<div id="header">{$link_parent}<h1>{$this->title}</h1></div>
 HTML;
 
 		foreach ($this->galleries as $gallery) {
@@ -348,7 +437,70 @@ HTML;
 			$html .= $photo->html_thumbnail($this->thumbnail_width, $this->thumbnail_height, $this->crop_thumbnails, $this->embed_thumbnails);
 		}
 
-		$html .= "</body></html>";
+		$html .= <<<HTML
+	<script>
+		function showPhoto(a_element) {
+			var div = document.createElement('div');
+			div.id = "popup";
+			var img = document.createElement('img');
+			img.src = a_element.href;
+			var next = document.createElement('div');
+			next.id = "next";
+			next.class = "arrow";
+			var prev = document.createElement('div');
+			prev.id = "prev";
+			prev.class = "arrow";
+			div.appendChild(img);
+			div.appendChild(prev);
+			div.appendChild(next);
+			document.body.appendChild(div);
+
+			div.onclick = function(e) {
+				e.preventDefault();
+				e.stopPropagation();
+				document.body.removeChild(div);
+			};
+
+			prev.onclick = function(e) {
+				e.preventDefault();
+				e.stopPropagation();
+				var prevElement = a_element.parentElement.previousElementSibling;
+				if (prevElement) {
+					var prevPhoto = prevElement.querySelector('a');
+					if (prevPhoto) {
+						showPhoto(prevPhoto);
+					}
+				}
+				document.body.removeChild(div);
+			};
+
+			next.onclick = function(e) {
+				e.preventDefault();
+				e.stopPropagation();
+				var nextElement = a_element.parentElement.nextElementSibling;
+				if (nextElement) {
+					var nextPhoto = nextElement.querySelector('a');
+					if (nextPhoto) {
+						showPhoto(nextPhoto);
+					}
+				}
+				document.body.removeChild(div);
+			};
+		}
+
+		var photos = document.querySelectorAll('.photo a');
+		for (var i in photos) {
+			photos[i].onclick = function(e) {
+				e.preventDefault();
+				e.stopPropagation();
+				console.log([e, this]);
+				showPhoto(this);
+			};
+		}
+	</script>
+</body>
+</html>
+HTML;
 
 		return $html;
 	}
