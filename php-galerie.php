@@ -1,6 +1,8 @@
 <?php
 
 class Video extends Media {
+	public $thumbnail_file = '';
+
 	function classes() {
 		$classes = parent::classes();
 		$classes[] = 'video';
@@ -11,18 +13,21 @@ class Video extends Media {
 	function html_thumbnail($width, $height, $crop_thumbnail = false, $embed_thumbnail = false) {
 		$classes = implode(' ', $this->classes());
 
+		$extra = '';
+		if (file_exists($this->thumbnail_file)) {
+			$extra .= ' poster="'.htmlspecialchars(basename($this->thumbnail_file)).'"';
+			$this->files[basename($this->thumbnail_file)] = ['path' => $this->thumbnail_file];
+		}
+
 		$html = <<<HTML
 	<figure class="{$classes}">
-		<a href="{$this->url_original()}"><video controls height="{$height}" width="{$width}" src="{$this->url_original()}"></video>
+		<a href="{$this->url_original()}"><video controls height="{$height}" width="{$width}" src="{$this->url_original()}" $extra></video>
 		<figcaption><a href="{$this->url_original()}">{$this->title()}</a></figcaption>
 	</figure>
 
 HTML;
 
 		$this->files[basename($this->original_path)] = ['path' => $this->path_original()];
-
-		if (!$embed_thumbnail) {
-		}
 
 		return $html;
 	}
@@ -281,6 +286,12 @@ HTML;
 		foreach (glob($directory."/*.mp4") as $file) {
 			if (strpos(basename($file), ".") !== 0 and strpos(basename($file), "_") !== 0) {
 				$media[$file] = new Video($file);
+
+				$thumbnail_file = str_replace('.mp4', '.jpg', $file);
+				if (file_exists($thumbnail_file)) {
+					unset($media[$thumbnail_file]);
+					$media[$file]->thumbnail_file = $thumbnail_file;
+				}
 			}
 		}
 
@@ -465,10 +476,16 @@ CSS;
 		figure > a img {
 			width: 100%;
 		}
+		figure > a video {
+			width: 100%;
+		}
 CSS;
 		} else {
 			$css .= <<<CSS
 		figure > a img {
+			max-width: 100%;
+		}
+		figure > a video {
 			max-width: 100%;
 		}
 CSS;
