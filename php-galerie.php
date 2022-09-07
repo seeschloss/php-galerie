@@ -1,41 +1,79 @@
 <?php
 
-class Photo {
-	public $original_path = "";
+class Video extends Media {
+	function classes() {
+		$classes = parent::classes();
+		$classes[] = 'video';
 
-	public $files = [];
-
-	function __construct($path) {
-		$this->original_path = $path;
+		return $classes;
 	}
 
-	function path_original() {
-		return $this->original_path;
-	}
+	function html_thumbnail($width, $height, $crop_thumbnail = false, $embed_thumbnail = false) {
+		$classes = implode(' ', $this->classes());
 
-	function path_size($width, $height, $crop = false) {
-		$cache_directory = dirname($this->original_path)."/.cache";
+		$html = <<<HTML
+	<figure class="{$classes}">
+		<a href="{$this->url_original()}"><video controls height="{$height}" width="{$width}" src="{$this->url_original()}"></video>
+		<figcaption><a href="{$this->url_original()}">{$this->title()}</a></figcaption>
+	</figure>
 
-		if (!file_exists($cache_directory)) {
-			mkdir($cache_directory, 0777, true);
+HTML;
+
+		$this->files[basename($this->original_path)] = ['path' => $this->path_original()];
+
+		if (!$embed_thumbnail) {
 		}
 
-		$filename = basename($this->original_path);
-		$width = (int)$width;
-		$height = (int)$height;
-
-		$path_size = "{$cache_directory}/w={$width},h={$height}";
-
-		if ($crop) {
-			$path_size .= ",c";
-		}
-
-		$path_size .= ",{$filename}";
-
-		return $path_size;
+		return $html;
 	}
 
-	function generate_size($width, $height, $crop = false) {
+	function url_size($width, $height, $crop = false, $embed = false) {
+		return $this->url_original();
+	}
+}
+
+class Photo extends Media {
+	function html_thumbnail($width, $height, $crop_thumbnail = false, $embed_thumbnail = false) {
+		$classes = implode(' ', $this->classes());
+
+		$html = <<<HTML
+	<figure class="{$classes}">
+		<a href="{$this->url_original()}"><img src="{$this->url_size($width, $height, $crop_thumbnail, $embed_thumbnail)}" /></a>
+		<figcaption><a href="{$this->url_original()}">{$this->title()}</a></figcaption>
+	</figure>
+
+HTML;
+
+		$this->files[basename($this->original_path)] = ['path' => $this->path_original()];
+
+		if (!$embed_thumbnail) {
+			$this->files[$this->url_size($width, $height, $crop_thumbnail, false)] = ['data' => $this->generate_size($width, $height, $crop_thumbnail)];
+		}
+
+		return $html;
+	}
+
+	function classes() {
+		$classes = parent::classes();
+		$classes[] = 'photo';
+
+		return $classes;
+	}
+
+	function url_size($width, $height, $crop = false, $embed = false) {
+		if ($embed) {
+			return "data:image/jpeg;base64,".base64_encode($this->generate_size($width, $height, $crop));
+		} else {
+			$url_size = ".cache/w={$width},h={$height}";
+			if ($crop) {
+				$url_size .= ",c";
+			}
+			$url_size .= ",".basename($this->original_path);
+			return $url_size;
+		}
+	}
+
+	private function generate_size($width, $height, $crop = false) {
 		if (!file_exists($this->path_size($width, $height, $crop))) {
 			$cache_directory = dirname($this->original_path)."/.cache";
 			if (!file_exists($cache_directory)) {
@@ -75,27 +113,52 @@ class Photo {
 		return file_get_contents($this->path_size($width, $height, $crop));
 	}
 
+	function path_size($width, $height, $crop = false) {
+		$cache_directory = dirname($this->original_path)."/.cache";
+
+		if (!file_exists($cache_directory)) {
+			mkdir($cache_directory, 0777, true);
+		}
+
+		$filename = basename($this->original_path);
+		$width = (int)$width;
+		$height = (int)$height;
+
+		$path_size = "{$cache_directory}/w={$width},h={$height}";
+
+		if ($crop) {
+			$path_size .= ",c";
+		}
+
+		$path_size .= ",{$filename}";
+
+		return $path_size;
+	}
+}
+
+class Media {
+	public $original_path = "";
+
+	public $files = [];
+
+	function __construct($path) {
+		$this->original_path = $path;
+	}
+
+	function path_original() {
+		return $this->original_path;
+	}
+
 	function url_original() {
 		return basename($this->original_path);
 	}
 
 	function url_size($width, $height, $crop = false, $embed = false) {
-		if ($embed) {
-			return "data:image/jpeg;base64,".base64_encode($this->generate_size($width, $height, $crop));
-		} else {
-			$url_size = ".cache/w={$width},h={$height}";
-			if ($crop) {
-				$url_size .= ",c";
-			}
-			$url_size .= ",".basename($this->original_path);
-			return $url_size;
-		}
+		return "";
 	}
 
 	function classes() {
-		$classes = [
-			'photo',
-		];
+		$classes = [];
 
 		$title = basename($this->original_path);
 
@@ -106,8 +169,7 @@ class Photo {
 			$classes[] = "has-title";
 		}
 
-
-		return implode(' ', $classes);
+		return $classes;
 	}
 
 	function title() {
@@ -125,27 +187,13 @@ class Photo {
 	}
 
 	function html_thumbnail($width, $height, $crop_thumbnail = false, $embed_thumbnail = false) {
-		$html = <<<HTML
-	<figure class="{$this->classes()}">
-		<a href="{$this->url_original()}"><img src="{$this->url_size($width, $height, $crop_thumbnail, $embed_thumbnail)}" /></a>
-		<figcaption><a href="{$this->url_original()}">{$this->title()}</a></figcaption>
-	</figure>
-
-HTML;
-
-		$this->files[basename($this->original_path)] = ['path' => $this->path_original()];
-
-		if (!$embed_thumbnail) {
-			$this->files[$this->url_size($width, $height, $crop_thumbnail, false)] = ['data' => $this->generate_size($width, $height, $crop_thumbnail)];
-		}
-
-		return $html;
+		return "";
 	}
 }
 
 class Gallery {
 	public $files_raw = [];
-	public $photos = [];
+	public $media = [];
 	public $galleries = [];
 	public $parent = null;
 
@@ -222,20 +270,26 @@ HTML;
 	function read_directory($directory, $recursive = false, $max_depth = NULL) {
 		$this->url = basename($directory);
 		$this->title = $this->url;
-		$photos = [];
+		$media = [];
 
 		foreach (glob($directory."/*.jpg") + glob($directory."/*.JPG") + glob($directory."/*.jpeg") + glob($directory."/*.JPEG") as $file) {
 			if (strpos(basename($file), ".") !== 0 and strpos(basename($file), "_") !== 0) {
-				$photos[$file] = new Photo($file);
+				$media[$file] = new Photo($file);
 			}
 		}
 
-		$this->photos = $photos;
+		foreach (glob($directory."/*.mp4") as $file) {
+			if (strpos(basename($file), ".") !== 0 and strpos(basename($file), "_") !== 0) {
+				$media[$file] = new Video($file);
+			}
+		}
+
+		$this->media = $media;
 
 		if (file_exists($directory."/.thumbnail.jpg")) {
 			$this->thumbnail = new Photo($directory."/.thumbnail.jpg");
-		} else if (count($this->photos)) {
-			$this->thumbnail = $this->photos[array_key_first($this->photos)];
+		} else if (count($this->media)) {
+			$this->thumbnail = $this->media[array_key_first($this->media)];
 		}
 
 		$galleries = [];
@@ -270,8 +324,8 @@ HTML;
 	function thumbnail_base64() {
 		if ($this->thumbnail) {
 			return $this->thumbnail->url_size($this->thumbnail_width, $this->thumbnail_height, $this->crop_thumbnails, true);
-		} else foreach ($this->photos as $photo) {
-			return $photo->url_size($this->thumbnail_width, $this->thumbnail_height, $this->crop_thumbnails, true);
+		} else foreach ($this->media as $media) {
+			return $media->url_size($this->thumbnail_width, $this->thumbnail_height, $this->crop_thumbnails, true);
 		}
 
 		return "";
@@ -443,8 +497,8 @@ HTML;
 			$html .= $gallery->html_thumbnail($this->thumbnail_width, $this->thumbnail_height);
 		}
 
-		foreach ($this->photos as $photo) {
-			$html .= $photo->html_thumbnail($this->thumbnail_width, $this->thumbnail_height, $this->crop_thumbnails, $this->embed_thumbnails);
+		foreach ($this->media as $media) {
+			$html .= $media->html_thumbnail($this->thumbnail_width, $this->thumbnail_height, $this->crop_thumbnails, $this->embed_thumbnails);
 		}
 
 		$html .= <<<HTML
@@ -526,15 +580,15 @@ HTML;
 		Log::stderr("Writing gallery '{$output_directory}'");
 		file_put_contents($output_directory."/index.html", $this->html());
 		Log::stderr(".");
-		foreach ($this->photos as $photo) {
-			foreach ($photo->files as $relative_path => $file) {
+		foreach ($this->media as $media) {
+			foreach ($media->files as $relative_path => $file) {
 				$directory = dirname($output_directory."/".$relative_path);
 				if (!file_exists($directory)) {
 					mkdir($directory, 0777, true);
 				}
 				$file_output_path = $output_directory."/".$relative_path;
 				if (file_exists($output_directory."/".$relative_path)) {
-					if (filemtime($photo->path_original()) > filemtime($file_output_path)) {
+					if (filemtime($media->path_original()) > filemtime($file_output_path)) {
 						if (isset($file['path']) and file_exists($file['path'])) {
 							copy($file['path'], $file_output_path);
 							Log::stderr("+");
@@ -581,7 +635,7 @@ function help_message($options) {
 
 	echo <<<TXT
 php-galerie
-Generate a static HTML photo gallery from directories containing JPEG files.
+Generate a static HTML media gallery from directories containing JPEG files.
 
 Options:
 
