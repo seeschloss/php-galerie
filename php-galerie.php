@@ -79,7 +79,7 @@ HTML;
 	}
 
 	private function generate_size($width, $height, $crop = false) {
-		if (!file_exists($this->path_size($width, $height, $crop))) {
+		if (!file_exists($this->path_size($width, $height, $crop)) or filemtime($this->path_size($width, $height, $crop)) < filemtime($this->original_path)) {
 			$cache_directory = dirname($this->original_path)."/.cache";
 			if (!file_exists($cache_directory)) {
 				mkdir($cache_directory);
@@ -211,6 +211,7 @@ class Gallery {
 
 	public $embed_thumbnails = false;
 	public $crop_thumbnails = false;
+	public $use_symlinks = false;
 	public $thumbnail_width = 250;
 	public $thumbnail_height = 250;
 
@@ -314,6 +315,7 @@ HTML;
 							$gallery->parent = $this;
 							$gallery->embed_thumbnails = $this->embed_thumbnails;
 							$gallery->crop_thumbnails = $this->crop_thumbnails;
+							$gallery->use_symlinks = $this->use_symlinks;
 							$gallery->thumbnail_width = $this->thumbnail_width;
 							$gallery->thumbnail_height = $this->thumbnail_height;
 							$gallery->read_directory($subdirectory, $recursive, $max_depth - 1);
@@ -604,10 +606,17 @@ HTML;
 					mkdir($directory, 0777, true);
 				}
 				$file_output_path = $output_directory."/".$relative_path;
-				if (file_exists($output_directory."/".$relative_path)) {
-					if (filemtime($media->path_original()) > filemtime($file_output_path)) {
+				if (file_exists($output_directory."/".$relative_path) or ($this->use_symlinks and !is_link($file_output_path))) {
+					if (filemtime($media->path_original()) > filemtime($file_output_path) or ($this->use_symlinks and !is_link($file_output_path))) {
 						if (isset($file['path']) and file_exists($file['path'])) {
-							copy($file['path'], $file_output_path);
+							if ($this->use_symlinks) {
+								if (file_exists($file_output_path)) {
+									unlink($file_output_path);
+								}
+								symlink(realpath($file['path']), $file_output_path);
+							} else {
+								copy($file['path'], $file_output_path);
+							}
 							Log::stderr("+");
 						} else if (isset($file['data'])) {
 							file_put_contents($file_output_path, $file['data']);
@@ -618,7 +627,14 @@ HTML;
 					}
 				} else {
 					if (isset($file['path']) and file_exists($file['path'])) {
-						copy($file['path'], $file_output_path);
+						if ($this->use_symlinks) {
+							if (file_exists($file_output_path)) {
+								unlink($file_output_path);
+							}
+							symlink(realpath($file['path']), $file_output_path);
+						} else {
+							copy($file['path'], $file_output_path);
+						}
 						Log::stderr(".");
 					} else if (isset($file['data'])) {
 						file_put_contents($file_output_path, $file['data']);
@@ -710,6 +726,11 @@ if (php_sapi_name() == 'cli') {
 			'long' => 'crop',
 			'description' => ['-c, --crop', 'Crop thumbnails to fill size'],
 		],
+		'symlinks' => [
+			'short' => 'l',
+			'long' => 'links',
+			'description' => ['-l, --links', 'Create symlinks rather than copying the image files'],
+		],
 	];
 
 	$short_options = "";
@@ -766,6 +787,11 @@ if (php_sapi_name() == 'cli') {
 		$crop_thumbnails = true;
 	}
 
+	$use_symlinks = false;
+	if (isset($cmdline_options['l']) or isset($cmdline_options['links'])) {
+		$use_symlinks = true;
+	}
+
 	$thumbnail_size = "250x250";
 	if (isset($cmdline_options['t'])) {
 		$thumbnail_size = $cmdline_options['t'];
@@ -790,6 +816,7 @@ if (php_sapi_name() == 'cli') {
 	$gallery = new Gallery();
 	$gallery->embed_thumbnails = $embed_thumbnails;
 	$gallery->crop_thumbnails = $crop_thumbnails;
+	$gallery->use_symlinks = $use_symlinks;
 	$gallery->thumbnail_width = $thumbnail_width;
 	$gallery->thumbnail_height = $thumbnail_height;
 	$gallery->read_directory($input_directory, $recursive, $max_depth);
