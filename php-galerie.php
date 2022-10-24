@@ -833,6 +833,6 @@ if (php_sapi_name() == 'cli') {
 	} else {
 		$gallery = new Gallery();
 		$gallery->read_directory($request_path_relative);
-		echo $gallery->html(true);
+		echo $gallery->html();
 	}
 }
