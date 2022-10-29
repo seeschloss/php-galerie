@@ -311,7 +311,8 @@ class test_Gallery extends UnitTest {
 	function test_html_title() {
 		$gallery = new Gallery();
 		$gallery->title = "Title";
-		self::assertHtmlElement('<div id="header"><h1>/Title/</h1></div>', $gallery->html());
+		self::assertHtmlElement('<div id="header"><h1>Title</h1></div>', $gallery->html());
+		self::assertHtmlElement('<title>Title</title>', $gallery->html());
 	}
 
 	function test_html_parent() {

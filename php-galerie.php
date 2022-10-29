@@ -416,7 +416,7 @@ HTML;
 		}
 
 		#popup {
-			position: absolute;
+			position: fixed;
 			width: 100%;
 			height: 100%;
 			background-color: rgba(0, 0, 0, 0.9);
@@ -503,6 +503,7 @@ CSS;
 <!DOCTYPE html>
 <html class="php-galerie" data-thumbnail-src="{$this->thumbnail_base64()}">
 <head>
+	<title>{$this->title}</title>
 	<meta charset="utf-8" />
 	<style>
 		{$css}
@@ -522,7 +523,55 @@ HTML;
 
 		$html .= <<<HTML
 	<script>
+		function bodyKeyDownHandler(e) {
+			switch (e.keyCode) {
+				case 27:
+					hidePhoto(document.body.querySelector('#popup'));
+					break;
+				case 39:
+					var currentPhoto = document.body.querySelector('.popup-displayed');
+					hidePhoto(document.body.querySelector('#popup'));
+					if (currentPhoto) {
+						showNextPhoto(currentPhoto);
+					}
+					break;
+				case 37:
+					var currentPhoto = document.body.querySelector('.popup-displayed');
+					hidePhoto(document.body.querySelector('#popup'));
+					if (currentPhoto) {
+						showPreviousPhoto(currentPhoto);
+					}
+					break;
+			}
+		}
+
+		function hidePhoto(div) {
+			document.body.removeChild(div);
+			document.body.removeEventListener('keydown', bodyKeyDownHandler);
+			document.body.querySelector('.popup-displayed').classList.remove('popup-displayed');
+		}
+
+		function showPreviousPhoto(currentPhoto) {
+			if (currentPhoto.parentElement.previousElementSibling.classList.contains('photo')) {
+				var previousPhoto = currentPhoto.parentElement.previousElementSibling.firstElementChild;
+				if (previousPhoto) {
+					showPhoto(previousPhoto);
+				}
+			}
+		}
+
+		function showNextPhoto(currentPhoto) {
+			if (currentPhoto.parentElement.nextElementSibling.classList.contains('photo')) {
+				var nextPhoto = currentPhoto.parentElement.nextElementSibling.firstElementChild;
+				if (nextPhoto) {
+					showPhoto(nextPhoto);
+				}
+			}
+		}
+
 		function showPhoto(a_element) {
+			a_element.classList.add('popup-displayed');
+
 			var div = document.createElement('div');
 			div.id = "popup";
 			var img = document.createElement('img');
@@ -537,16 +586,18 @@ HTML;
 			div.appendChild(prev);
 			div.appendChild(next);
 			document.body.appendChild(div);
+			document.body.addEventListener('keydown', bodyKeyDownHandler);
 
 			div.onclick = function(e) {
 				e.preventDefault();
 				e.stopPropagation();
-				document.body.removeChild(div);
+				hidePhoto(div);
 			};
 
 			prev.onclick = function(e) {
 				e.preventDefault();
 				e.stopPropagation();
+				hidePhoto(div);
 				var prevElement = a_element.parentElement.previousElementSibling;
 				if (prevElement) {
 					var prevPhoto = prevElement.querySelector('a');
@@ -554,12 +605,12 @@ HTML;
 						showPhoto(prevPhoto);
 					}
 				}
-				document.body.removeChild(div);
 			};
 
 			next.onclick = function(e) {
 				e.preventDefault();
 				e.stopPropagation();
+				hidePhoto(div);
 				var nextElement = a_element.parentElement.nextElementSibling;
 				if (nextElement) {
 					var nextPhoto = nextElement.querySelector('a');
@@ -567,7 +618,6 @@ HTML;
 						showPhoto(nextPhoto);
 					}
 				}
-				document.body.removeChild(div);
 			};
 		}
 
@@ -576,7 +626,6 @@ HTML;
 			photos[i].onclick = function(e) {
 				e.preventDefault();
 				e.stopPropagation();
-				console.log([e, this]);
 				showPhoto(this);
 			};
 		}
@@ -607,7 +656,7 @@ HTML;
 				}
 				$file_output_path = $output_directory."/".$relative_path;
 				if (file_exists($output_directory."/".$relative_path) or ($this->use_symlinks and !is_link($file_output_path))) {
-					if (filemtime($media->path_original()) > filemtime($file_output_path) or ($this->use_symlinks and !is_link($file_output_path))) {
+					if (!file_exists($file_output_path) or filemtime($media->path_original()) > filemtime($file_output_path) or ($this->use_symlinks and !is_link($file_output_path))) {
 						if (isset($file['path']) and file_exists($file['path'])) {
 							if ($this->use_symlinks) {
 								if (file_exists($file_output_path)) {
