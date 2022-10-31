@@ -500,11 +500,11 @@ HTML;
 		}
 
 		#popup #prev:before {
-			content: "◂";
+			content: "◄";
 		}
 
 		#popup #next:before {
-			content: "▸";
+			content: "►";
 		}
 
 		#popup #next {
