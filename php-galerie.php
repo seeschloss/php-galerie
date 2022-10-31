@@ -11,8 +11,6 @@ class Video extends Media {
 	}
 
 	function html_thumbnail($width, $height, $crop_thumbnail = false, $embed_thumbnail = false) {
-		$classes = implode(' ', $this->classes());
-
 		$extra = '';
 		if (file_exists($this->thumbnail_file)) {
 			$extra .= ' poster="'.htmlspecialchars(basename($this->thumbnail_file)).'"';
@@ -20,7 +18,7 @@ class Video extends Media {
 		}
 
 		$html = <<<HTML
-	<figure class="{$classes}">
+	<figure {$this->html_attributes()}>
 		<a href="{$this->url_original()}"><video controls height="{$height}" width="{$width}" src="{$this->url_original()}" $extra></video>
 		<figcaption><a href="{$this->url_original()}">{$this->title()}</a></figcaption>
 	</figure>
@@ -38,11 +36,25 @@ HTML;
 }
 
 class Photo extends Media {
-	function html_thumbnail($width, $height, $crop_thumbnail = false, $embed_thumbnail = false) {
-		$classes = implode(' ', $this->classes());
+	function __construct($path) {
+		parent::__construct($path);
+	}
 
+	function read_tags($field) {
+		$tags = [];
+		$exif = exif_read_data($this->original_path);
+		if (!empty($exif['COMPUTED'][$field])) {
+			foreach (explode(' ', $exif['COMPUTED'][$field]) as $tag) {
+				$tag = trim($tag);
+				$tags[$tag] = $tag;
+			}
+		}
+		$this->tags = array_keys($tags);
+	}
+
+	function html_thumbnail($width, $height, $crop_thumbnail = false, $embed_thumbnail = false) {
 		$html = <<<HTML
-	<figure class="{$classes}">
+	<figure {$this->html_attributes()}>
 		<a href="{$this->url_original()}"><img src="{$this->url_size($width, $height, $crop_thumbnail, $embed_thumbnail)}" /></a>
 		<figcaption><a href="{$this->url_original()}">{$this->title()}</a></figcaption>
 	</figure>
@@ -145,9 +157,26 @@ class Media {
 	public $original_path = "";
 
 	public $files = [];
+	public $tags = [];
 
 	function __construct($path) {
 		$this->original_path = $path;
+	}
+
+	function html_attributes() {
+		$attributes = [
+			'class' => implode(' ', $this->classes()),
+		];
+
+		if (!empty($this->tags)) {
+			$attributes['data-tags'] = implode(' ', $this->tags);
+		}
+
+		$html = "";
+		foreach ($attributes as $attribute => $value) {
+			$html .= $attribute.'="'.$value.'"';
+		}
+		return $html;
 	}
 
 	function path_original() {
@@ -214,6 +243,7 @@ class Gallery {
 	public $use_symlinks = false;
 	public $thumbnail_width = 250;
 	public $thumbnail_height = 250;
+	public $tags_field = "";
 
 	static function is_gallery($directory) {
 		if (file_exists($directory."/index.html")) {
@@ -281,6 +311,9 @@ HTML;
 		foreach (glob($directory."/*.jpg") + glob($directory."/*.JPG") + glob($directory."/*.jpeg") + glob($directory."/*.JPEG") as $file) {
 			if (strpos(basename($file), ".") !== 0 and strpos(basename($file), "_") !== 0) {
 				$media[$file] = new Photo($file);
+				if ($this->tags_field) {
+					$media[$file]->read_tags($this->tags_field);
+				}
 			}
 		}
 
@@ -318,6 +351,7 @@ HTML;
 							$gallery->use_symlinks = $this->use_symlinks;
 							$gallery->thumbnail_width = $this->thumbnail_width;
 							$gallery->thumbnail_height = $this->thumbnail_height;
+							$gallery->tags_field = $this->tags_field;
 							$gallery->read_directory($subdirectory, $recursive, $max_depth - 1);
 							$galleries[] = $gallery;
 						}
@@ -422,6 +456,11 @@ HTML;
 			background-color: rgba(0, 0, 0, 0.9);
 			display: grid;
 			align-items: center;
+			justify-items: center;
+		}
+
+		#popup > span {
+			display: grid;
 			justify-items: center;
 		}
 
@@ -562,11 +601,15 @@ HTML;
 
 		function showNextPhoto(currentPhoto) {
 			if (currentPhoto.parentElement.nextElementSibling.classList.contains('photo')) {
-				var nextPhoto = currentPhoto.parentElement.nextElementSibling.firstElementChild;
+				var nextPhoto = getNextPhoto(currentPhoto);
 				if (nextPhoto) {
 					showPhoto(nextPhoto);
 				}
 			}
+		}
+
+		function getNextPhoto(a_element) {
+			return a_element.parentElement.nextElementSibling.firstElementChild;
 		}
 
 		function showPhoto(a_element) {
@@ -574,6 +617,7 @@ HTML;
 
 			var div = document.createElement('div');
 			div.id = "popup";
+			var image_wrapper = document.createElement('span');
 			var img = document.createElement('img');
 			img.src = a_element.href;
 			var next = document.createElement('div');
@@ -582,11 +626,18 @@ HTML;
 			var prev = document.createElement('div');
 			prev.id = "prev";
 			prev.class = "arrow";
-			div.appendChild(img);
+			image_wrapper.appendChild(img);
+			div.appendChild(image_wrapper);
 			div.appendChild(prev);
 			div.appendChild(next);
 			document.body.appendChild(div);
 			document.body.addEventListener('keydown', bodyKeyDownHandler);
+
+			if (a_element.parentElement.dataset['tags'] !== undefined) {
+				var tags = document.createElement('span');
+				tags.innerHTML = a_element.parentElement.dataset['tags'];
+				image_wrapper.appendChild(tags);
+			}
 
 			div.onclick = function(e) {
 				e.preventDefault();
@@ -780,6 +831,16 @@ if (php_sapi_name() == 'cli') {
 			'long' => 'links',
 			'description' => ['-l, --links', 'Create symlinks rather than copying the image files'],
 		],
+		'title' => [
+			'short' => 'n:',
+			'long' => 'title::',
+			'description' => ['-n, --title', 'Title of the gallery'],
+		],
+		'tags' => [
+			'short' => 'x:',
+			'long' => 'tags::',
+			'description' => ['-x, --tags', 'Read tags delimited by spaces in this Exif field (off by default, "UserComment" is a good field to use for tagging)'],
+		],
 	];
 
 	$short_options = "";
@@ -848,14 +909,28 @@ if (php_sapi_name() == 'cli') {
 	if (isset($cmdline_options['thumbnail-size'])) {
 		$thumbnail_size = $cmdline_options['thumbnail-size'];
 	}
-
 	if (strpos($thumbnail_size, 'x') === false) {
 		var_dump($thumbnail_size);
 		help_message($options);
 		exit(1);
 	}
-
 	list($thumbnail_width, $thumbnail_height) = explode('x', $thumbnail_size);
+
+	$title = null;
+	if (isset($cmdline_options['n'])) {
+		$title = $cmdline_options['n'];
+	}
+	if (isset($cmdline_options['title'])) {
+		$title = $cmdline_options['title'];
+	}
+
+	$tags_field = null;
+	if (isset($cmdline_options['x'])) {
+		$tags_field = $cmdline_options['x'];
+	}
+	if (isset($cmdline_options['tags'])) {
+		$tags_field = $cmdline_options['tags'];
+	}
 
 	if ((int)$thumbnail_width != $thumbnail_width or (int)$thumbnail_height != $thumbnail_height or $thumbnail_width == 0 or $thumbnail_height == 0) {
 		help_message($options);
@@ -868,7 +943,11 @@ if (php_sapi_name() == 'cli') {
 	$gallery->use_symlinks = $use_symlinks;
 	$gallery->thumbnail_width = $thumbnail_width;
 	$gallery->thumbnail_height = $thumbnail_height;
+	$gallery->tags_field = $tags_field;
 	$gallery->read_directory($input_directory, $recursive, $max_depth);
+	if ($title) {
+		$gallery->title = $title;
+	}
 
 	if ($output_directory) {
 		$gallery->write($output_directory, $recursive, $max_depth);
