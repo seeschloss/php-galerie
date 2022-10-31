@@ -592,7 +592,7 @@ HTML;
 
 		function showPreviousPhoto(currentPhoto) {
 			if (currentPhoto.parentElement.previousElementSibling.classList.contains('photo')) {
-				var previousPhoto = currentPhoto.parentElement.previousElementSibling.firstElementChild;
+				var previousPhoto = getPreviousPhoto(currentPhoto);
 				if (previousPhoto) {
 					showPhoto(previousPhoto);
 				}
@@ -608,12 +608,26 @@ HTML;
 			}
 		}
 
+		function getPreviousPhoto(a_element) {
+			return a_element.parentElement.previousElementSibling.firstElementChild;
+		}
+
 		function getNextPhoto(a_element) {
 			return a_element.parentElement.nextElementSibling.firstElementChild;
 		}
 
 		function showPhoto(a_element) {
 			a_element.classList.add('popup-displayed');
+
+			var link_preload_next = document.createElement('link');
+			link_preload_next.href = getNextPhoto(a_element);
+			link_preload_next.rel = "preload";
+			link_preload_next.as = "image";
+
+			var link_preload_previous = document.createElement('link');
+			link_preload_previous.href = getPreviousPhoto(a_element);
+			link_preload_previous.rel = "preload";
+			link_preload_previous.as = "image";
 
 			var div = document.createElement('div');
 			div.id = "popup";
@@ -630,6 +644,8 @@ HTML;
 			div.appendChild(image_wrapper);
 			div.appendChild(prev);
 			div.appendChild(next);
+			div.appendChild(link_preload_next);
+			div.appendChild(link_preload_previous);
 			document.body.appendChild(div);
 			document.body.addEventListener('keydown', bodyKeyDownHandler);
 
