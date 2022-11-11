@@ -90,7 +90,7 @@ HTML;
 		}
 	}
 
-	private function generate_size($width, $height, $crop = false) {
+	function generate_size($width, $height, $crop = false) {
 		if (!file_exists($this->path_size($width, $height, $crop)) or filemtime($this->path_size($width, $height, $crop)) < filemtime($this->original_path)) {
 			$cache_directory = dirname($this->original_path)."/.cache";
 			if (!file_exists($cache_directory)) {
@@ -166,6 +166,7 @@ class Media {
 	function html_attributes() {
 		$attributes = [
 			'class' => implode(' ', $this->classes()),
+			'data-title' => $this->title(),
 		];
 
 		if (!empty($this->tags)) {
@@ -244,6 +245,7 @@ class Gallery {
 	public $thumbnail_width = 250;
 	public $thumbnail_height = 250;
 	public $tags_field = "";
+	public $script = "";
 
 	static function is_gallery($directory) {
 		if (file_exists($directory."/index.html")) {
@@ -352,6 +354,7 @@ HTML;
 							$gallery->thumbnail_width = $this->thumbnail_width;
 							$gallery->thumbnail_height = $this->thumbnail_height;
 							$gallery->tags_field = $this->tags_field;
+							$gallery->script = $this->script;
 							$gallery->read_directory($subdirectory, $recursive, $max_depth - 1);
 							$galleries[] = $gallery;
 						}
@@ -414,7 +417,7 @@ HTML;
 			max-height: 50px;
 		}
 
-		figure {
+		figure.photo, figure.video, figure.gallery {
 			margin: 0 0 5px 0;
 			border: 2px white solid;
 			border-radius: 2px;
@@ -450,18 +453,19 @@ HTML;
 		}
 
 		#popup {
+			display: grid;
+			grid-template-rows: 100%;
 			position: fixed;
 			width: 100%;
 			height: 100%;
 			background-color: rgba(0, 0, 0, 0.9);
-			display: grid;
-			align-items: center;
-			justify-items: center;
 		}
 
-		#popup > span {
+		#popup .image-wrapper {
 			display: grid;
 			justify-items: center;
+			align-items: center;
+			margin: 0;
 		}
 
 		#popup img {
@@ -470,13 +474,12 @@ HTML;
 		}
 
 		#popup #prev, #popup #next {
-			position: absolute;
-			height: 100%;
-			width: 100px;
-			display: grid;
-			align-items: center;
 			opacity: 0.2;
 			cursor: pointer;
+			position: absolute;
+			top: 50%;
+			height: 0px;
+			line-height: 0;
 		}
 
 		#popup #prev:hover, #popup #next:hover {
@@ -514,19 +517,19 @@ CSS;
 
 		if ($this->crop_thumbnails) {
 			$css .= <<<CSS
-		figure > a img {
+		figure.photo > a img, figure.gallery > a img {
 			width: 100%;
 		}
-		figure > a video {
+		figure.video > a video {
 			width: 100%;
 		}
 CSS;
 		} else {
 			$css .= <<<CSS
-		figure > a img {
+		figure.photo > a img, figure.gallery > a img {
 			max-width: 100%;
 		}
-		figure > a video {
+		figure.video > a video {
 			max-width: 100%;
 		}
 CSS;
@@ -631,7 +634,16 @@ HTML;
 
 			var div = document.createElement('div');
 			div.id = "popup";
-			var image_wrapper = document.createElement('span');
+			var image_wrapper = document.createElement('figure');
+			image_wrapper.className = 'image-wrapper';
+
+			var title = document.createElement('figcaption');
+			title.className = 'title';
+			if (a_element.parentElement.dataset['title'] !== undefined) {
+				title.innerHTML = a_element.parentElement.dataset['title'];
+			}
+			image_wrapper.appendChild(title);
+
 			var img = document.createElement('img');
 			img.src = a_element.href;
 			var next = document.createElement('div');
@@ -649,11 +661,12 @@ HTML;
 			document.body.appendChild(div);
 			document.body.addEventListener('keydown', bodyKeyDownHandler);
 
+			var tags = document.createElement('figcaption');
+			tags.className = 'tags';
 			if (a_element.parentElement.dataset['tags'] !== undefined) {
-				var tags = document.createElement('span');
 				tags.innerHTML = a_element.parentElement.dataset['tags'];
-				image_wrapper.appendChild(tags);
 			}
+			image_wrapper.appendChild(tags);
 
 			div.onclick = function(e) {
 				e.preventDefault();
@@ -697,6 +710,24 @@ HTML;
 			};
 		}
 	</script>
+HTML;
+
+	if ($this->script) {
+		if (file_exists($this->script)) {
+			$js = file_get_contents($this->script);
+			$html .= <<<HTML
+	<script>
+		{$js}
+	</script>
+HTML;
+		} else {
+			$html .= <<<HTML
+	<script src="{$this->script}"></script>
+HTML;
+		}
+	}
+
+		$html .= <<<HTML
 </body>
 </html>
 HTML;
@@ -850,12 +881,17 @@ if (php_sapi_name() == 'cli') {
 		'title' => [
 			'short' => 'n:',
 			'long' => 'title::',
-			'description' => ['-n, --title', 'Title of the gallery'],
+			'description' => ['-n <title>, --title=<title>', 'Title of the gallery'],
 		],
 		'tags' => [
 			'short' => 'x:',
 			'long' => 'tags::',
-			'description' => ['-x, --tags', 'Read tags delimited by spaces in this Exif field (off by default, "UserComment" is a good field to use for tagging)'],
+			'description' => ['-x <Exif field>, --tags=<Exif field>', 'Read tags delimited by spaces in this Exif field (off by default, "UserComment" is a good field to use for tagging)'],
+		],
+		'script' => [
+			'short' => 's:',
+			'long' => 'script::',
+			'description' => ['-s <file/url>, --script <file/url>', 'Include JavaScript script in the html (inline or as a URL)'],
 		],
 	];
 
@@ -948,6 +984,14 @@ if (php_sapi_name() == 'cli') {
 		$tags_field = $cmdline_options['tags'];
 	}
 
+	$script = null;
+	if (isset($cmdline_options['s'])) {
+		$script = $cmdline_options['s'];
+	}
+	if (isset($cmdline_options['script'])) {
+		$script = $cmdline_options['script'];
+	}
+
 	if ((int)$thumbnail_width != $thumbnail_width or (int)$thumbnail_height != $thumbnail_height or $thumbnail_width == 0 or $thumbnail_height == 0) {
 		help_message($options);
 		exit(1);
@@ -960,6 +1004,7 @@ if (php_sapi_name() == 'cli') {
 	$gallery->thumbnail_width = $thumbnail_width;
 	$gallery->thumbnail_height = $thumbnail_height;
 	$gallery->tags_field = $tags_field;
+	$gallery->script = $script;
 	$gallery->read_directory($input_directory, $recursive, $max_depth);
 	if ($title) {
 		$gallery->title = $title;

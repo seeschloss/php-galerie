@@ -119,9 +119,9 @@ class UnitTest {
 
 	static function assertEqual($value, $expected) {
 		if ($value === $expected) {
-			self::pass($expected, "'{$value}' equals '{$expected}'");
+			self::pass($expected, sprintf("%s equals %s", json_encode($value), json_encode($expected)));
 		} else {
-			self::fail($expected, "'{$value}' differs from '{$expected}'");
+			self::fail($expected, sprintf("%s differs from %s", json_encode($value), json_encode($expected)));
 		}
 	}
 
@@ -276,7 +276,7 @@ class UnitTest {
 
 class test_Gallery extends UnitTest {
 	private function tmp_photo($width, $height, $title = "") {
-		$im = imagecreatetruecolor(1200, 200);
+		$im = imagecreatetruecolor($width, $height);
 		$text_color = imagecolorallocate($im, 233, 14, 91);
 		$maxrnd = rand(10,70);
 
@@ -392,6 +392,7 @@ class test_Media extends UnitTest {
 
 		$media = new Media('/tmp/test.Title.jpg');
 		$this->assertEqual(count($media->classes()), 1);
+		$this->assertTrue(in_array('has-title', $media->classes()));
 	}
 
 	function test_path_original() {
@@ -402,6 +403,94 @@ class test_Media extends UnitTest {
 	function test_url_original() {
 		$media = new Media('/tmp/plop/test.jpg');
 		$this->assertEqual($media->url_original(), 'test.jpg');
+	}
+
+	function test_html_attributes() {
+		$media = new Media('/tmp/plop/test.jpg');
+		$this->assertString('class=""', $media->html_attributes());
+		$this->assertString('data-title="test.jpg"', $media->html_attributes());
+		$this->assertNoString('data-tags', $media->html_attributes());
+
+		$media->tags = ['tag', 'test'];
+		$this->assertString('data-tags="tag test"', $media->html_attributes());
+
+		$media = new Media('/tmp/test.Title.jpg');
+		$this->assertString('class="has-title"', $media->html_attributes());
+		$this->assertString('data-title="Title"', $media->html_attributes());
+	}
+}
+
+class test_Photo extends UnitTest {
+	private function tmp_photo($width, $height, $title = "") {
+		$im = imagecreatetruecolor($width, $height);
+		$text_color = imagecolorallocate($im, 233, 14, 91);
+		$maxrnd = rand(10,70);
+
+		for($y=0;$y<$maxrnd;$y++) {
+			imagestring($im, 10+$y*2, 50+$y*2, 50+$y*2, 'PLOP', $text_color);
+		};
+
+
+		$filename = $title ? tempnam("/tmp", "gallery.{$title}.jpg") : tempnam("/tmp", "gallery.jpg");
+
+		imagejpeg($im, $filename, 90);
+
+		$this->teardown_actions[] = function() use($filename) {
+			unlink($filename);
+		};
+
+		$photo = new Photo($filename);
+		return $photo;
+	}
+
+	function test_classes() {
+		$photo = new Photo('/tmp/test.jpg');
+		$this->assertEqual($photo->classes(), ['photo']);
+
+		$photo = new Photo('/tmp/test.Title.jpg');
+		$this->assertEqual($photo->classes(), ['has-title', 'photo']);
+	}
+
+	function test_url_size() {
+		$photo = new Photo('/tmp/test.jpg');
+		$this->assertEqual('.cache/w=100,h=100,c,test.jpg', $photo->url_size(100, 100, true, false));
+
+		$photo = new Photo('/tmp/test.jpg');
+		$this->assertEqual('.cache/w=150,h=100,test.jpg', $photo->url_size(150, 100, false, false));
+
+		$photo = $this->tmp_photo(800, 600);
+		$this->assertString('data:image/jpeg;base64,', $photo->url_size(50, 50, true, true));
+		$image_data = base64_decode(substr($photo->url_size(50, 50, true, true), strlen('data:image/jpeg;base64,')));
+		$image = imagecreatefromstring($image_data);
+		$this->assertEqual(50, imagesx($image));
+		$this->assertEqual(50, imagesy($image));
+
+		$photo = $this->tmp_photo(800, 600);
+		$this->assertString('data:image/jpeg;base64,', $photo->url_size(50, 50, false, true));
+		$image_data = base64_decode(substr($photo->url_size(50, 50, false, true), strlen('data:image/jpeg;base64,')));
+		$image = imagecreatefromstring($image_data);
+		$this->assertEqual(50, imagesx($image));
+		$this->assertEqual(37, imagesy($image));
+	}
+
+	function test_generate_size() {
+		$photo = $this->tmp_photo(800, 600);
+		$image = imagecreatefromstring($photo->generate_size(50, 50, true, true));
+		$this->assertEqual(50, imagesx($image));
+		$this->assertEqual(50, imagesy($image));
+
+		$photo = $this->tmp_photo(800, 600);
+		$image = imagecreatefromstring($photo->generate_size(50, 50, false, true));
+		$this->assertEqual(50, imagesx($image));
+		$this->assertEqual(37, imagesy($image));
+	}
+
+	function test_path_size() {
+		$photo = new Photo('/tmp/test.jpg');
+		$this->assertEqual('/tmp/.cache/w=100,h=100,c,test.jpg', $photo->path_size(100, 100, true, false));
+
+		$photo = new Photo('/tmp/test.jpg');
+		$this->assertEqual('/tmp/.cache/w=150,h=100,test.jpg', $photo->path_size(150, 100, false, false));
 	}
 }
 
