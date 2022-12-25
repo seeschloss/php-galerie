@@ -18,8 +18,8 @@ class Video extends Media {
 		}
 
 		$html = <<<HTML
-	<figure {$this->html_attributes()}>
-		<a href="{$this->url_original()}"><video controls height="{$height}" width="{$width}" src="{$this->url_original()}" $extra></video>
+	<figure class="{$classes}">
+		<a href="{$this->url_original()}"><video preload="none" controls height="{$height}" width="{$width}" src="{$this->url_original()}" $extra></video>
 		<figcaption><a href="{$this->url_original()}">{$this->title()}</a></figcaption>
 	</figure>
 
@@ -246,6 +246,8 @@ class Gallery {
 	public $thumbnail_height = 250;
 	public $tags_field = "";
 	public $script = "";
+	public $image_width = 1500;
+	public $image_height = 1500;
 
 	static function is_gallery($directory) {
 		if (file_exists($directory."/index.html")) {
@@ -868,6 +870,11 @@ if (php_sapi_name() == 'cli') {
 			'long' => 'thumbnail-size::',
 			'description' => ['-t <width>x<height>, --thumbnail-size=<width>x<height>', 'Resize thumbnails to size', '(250 x 250 by default)'],
 		],
+		'full-size' => [
+			'short' => 's:',
+			'long' => 'full-size::',
+			'description' => ['-s <width>x<height>, --full-size=<width>x<height>', 'Resize full pictures to size', '(1500 x 1500 by default)'],
+		],
 		'crop' => [
 			'short' => 'c',
 			'long' => 'crop',
@@ -997,6 +1004,27 @@ if (php_sapi_name() == 'cli') {
 		exit(1);
 	}
 
+	$full_size = "1500x1500";
+	if (isset($cmdline_options['s'])) {
+		$full_size = $cmdline_options['s'];
+	}
+	if (isset($cmdline_options['full-size'])) {
+		$full_size = $cmdline_options['full-size'];
+	}
+
+	if (strpos($full_size, 'x') === false) {
+		var_dump($full_size);
+		help_message($options);
+		exit(1);
+	}
+
+	list($full_width, $full_height) = explode('x', $full_size);
+
+	if ((int)$full_width != $full_width or (int)$full_height != $full_height or $full_width == 0 or $full_height == 0) {
+		help_message($options);
+		exit(1);
+	}
+
 	$gallery = new Gallery();
 	$gallery->embed_thumbnails = $embed_thumbnails;
 	$gallery->crop_thumbnails = $crop_thumbnails;
@@ -1005,6 +1033,8 @@ if (php_sapi_name() == 'cli') {
 	$gallery->thumbnail_height = $thumbnail_height;
 	$gallery->tags_field = $tags_field;
 	$gallery->script = $script;
+	$gallery->image_width = $full_width;
+	$gallery->image_height = $full_height;
 	$gallery->read_directory($input_directory, $recursive, $max_depth);
 	if ($title) {
 		$gallery->title = $title;
