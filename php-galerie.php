@@ -244,6 +244,7 @@ class Media {
 		$attributes = [
 			'class' => implode(' ', $this->classes()),
 			'data-title' => $this->title(),
+			'data-original' => $this->url_original(),
 		];
 
 		if (!empty($this->tags)) {
@@ -805,6 +806,10 @@ HTML;
 			}
 			image_wrapper.appendChild(title);
 
+			var a = document.createElement('a');
+			if (a_element.parentElement.dataset['original']) {
+				a.href = a_element.parentElement.dataset['original'];
+			}
 			var img = document.createElement('img');
 			img.src = a_element.href;
 			var next = document.createElement('div');
@@ -813,7 +818,8 @@ HTML;
 			var prev = document.createElement('div');
 			prev.id = "prev";
 			prev.class = "arrow";
-			image_wrapper.appendChild(img);
+			a.appendChild(img);
+			image_wrapper.appendChild(a);
 			div.appendChild(image_wrapper);
 			div.appendChild(prev);
 			div.appendChild(next);
@@ -828,6 +834,10 @@ HTML;
 				tags.innerHTML = a_element.parentElement.dataset['tags'];
 			}
 			image_wrapper.appendChild(tags);
+
+			a.onclick = function(e) {
+				e.stopPropagation();
+			};
 
 			div.onclick = function(e) {
 				e.preventDefault();
