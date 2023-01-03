@@ -38,14 +38,52 @@ HTML;
 }
 
 class Photo extends Media {
+	public $exif = [];
+	public $preview = null;
+
 	function __construct($path) {
 		parent::__construct($path);
 	}
 
+	function preview_image() {
+		// This function reads the APP2 segment in the JPEG and
+		// checks if it contains MPF data. MPF is used to store additional
+		// preview images, including hopefuly a "reasonably-sized one".
+		// cf. http://fileformats.archiveteam.org/wiki/JPEG
+		// and https://exiftool.org/TagNames/MPF.html
+		if ($this->preview === null) {
+			$data = file_get_contents($this->original_path);
+			$app2_offset = strpos($data, "\xFF\xE2");
+			if ($app2_offset and substr($data, $app2_offset + 4, 3) == 'MPF') {
+				$app2_length = unpack("vlength", substr($data, $app2_offset + 2, 2))['length'];
+				$mpf_data = substr($data, $app2_offset + 4 + 4, $app2_length);
+				$mpf = new MPF($mpf_data);
+				foreach ($mpf->images as $image) {
+					if ($image['type'] == 0x10002) {
+						// "Large Thumbnail"
+						$preview = substr($data, $image['start'] + $app2_offset + 4 + 4, $image['length']);
+						if (substr($preview, 0, 3) == "\xff\xd8\xff") {
+							$this->preview = $preview;
+							return $this->preview;
+						}
+					}
+				}
+			}
+		}
+
+		return null;
+	}
+
+	function read_exif() {
+		if (empty($this->exif)) {
+			$this->exif = exif_read_data($this->original_path);
+		}
+	}
+
 	function read_tags($field) {
 		$tags = [];
-		$exif = exif_read_data($this->original_path);
-		if (!empty($exif['COMPUTED'][$field])) {
+		$this->read_exif();
+		if (!empty($this->exif['COMPUTED'][$field])) {
 			foreach (explode(' ', $exif['COMPUTED'][$field]) as $tag) {
 				$tag = trim($tag);
 				$tags[$tag] = $tag;
@@ -99,17 +137,48 @@ HTML;
 				mkdir($cache_directory);
 			}
 
-			$r = imagecreatefromjpeg($this->original_path);
+			$data_orig = null;
 			$width = (int)$width;
 			$height = (int)$height;
 
-			list($width_orig, $height_orig) = getimagesize($this->original_path);
+			$r = null;
+
+			$exif_thumbnail = exif_thumbnail($this->original_path, $exif_thumbnail_width, $exif_thumbnail_height, $exif_thumbnail_type);
+			if ($exif_thumbnail and $exif_thumbnail_width >= $width and $exif_thumbnail_height >= $height) {
+				$r = imagecreatefromstring($exif_thumbnail);
+				$data_orig = $exif_thumbnail;
+				$width_orig = $exif_thumbnail_width;
+				$height_orig = $exif_thumbnail_height;
+			}
+
+			if (!$r) {
+				if (isset($this->exif['PreviewImageSize']) and count($this->exif['PreviewImageSize']) == 2) {
+					$preview_image_size_width = $this->exif['PreviewImageSize'][1];
+					$preview_image_size_height = $this->exif['PreviewImageSize'][0];
+					if ($preview_image_size_width >= $width and $preview_image_size_height >= $height) {
+						$preview_image = $this->preview_image();
+						if ($preview_image) {
+							$data_orig = $preview_image;
+							$width_orig = $preview_image_size_width;
+							$height_orig = $preview_image_size_height;
+							$r = imagecreatefromstring($preview_image);
+						}
+					}
+				}
+			}
+
+			if (!$r) {
+				$data_orig = file_get_contents($this->original_path);;
+				$r = imagecreatefromjpeg($this->original_path);
+				list($width_orig, $height_orig) = getimagesize($this->original_path);
+			}
 
 			if ($crop) {
 				$smallest_edge = min($width_orig, $height_orig);
 
 				$r_resized = imagecreatetruecolor($width, $height);
 				imagecopyresampled($r_resized, $r, 0, 0, ($width_orig - $smallest_edge)/2, ($height_orig - $smallest_edge)/2, $width, $height, $smallest_edge, $smallest_edge);
+				imagejpeg($r_resized, $this->path_size($width, $height, $crop), 95);
 			} else {
 				$ratio_orig = $width_orig/$height_orig;
 
@@ -123,10 +192,15 @@ HTML;
 				}
 
 				$r_resized = imagecreatetruecolor($width_proportional, $height_proportional);
-				imagecopyresampled($r_resized, $r, 0, 0, 0, 0, $width_proportional, $height_proportional, $width_orig, $height_orig);
+				if ($width_proportional != $width_orig or $height_proportional != $height_orig) {
+					imagecopyresampled($r_resized, $r, 0, 0, 0, 0, $width_proportional, $height_proportional, $width_orig, $height_orig);
+					imagejpeg($r_resized, $this->path_size($width, $height, $crop), 95);
+				} else {
+					file_put_contents($this->path_size($width, $height, $crop), $data_orig);
+				}
 			}
 
-			imagejpeg($r_resized, $this->path_size($width, $height, $crop), 95);
+			Log::stderr($width > 400 ? '+' : '%');
 		}
 
 		return file_get_contents($this->path_size($width, $height, $crop));
