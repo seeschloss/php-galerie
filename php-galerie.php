@@ -226,6 +226,85 @@ class Media {
 	}
 }
 
+class MPF {
+	private $data;
+
+	public $images = [];
+
+	function __construct($data) {
+		$this->data = $data;
+
+		$this->parse();
+	}
+
+	function parse() {
+		$header = unpack('c2chars/vTIFF_ID', substr($this->data, 0, 4));
+
+		// 0x2a is TIFF's magic number
+		if ($header['TIFF_ID'] != 0x2a) {
+			return false;
+		}
+
+		$little_endian = true;
+
+		if ($header['chars1'] == 0x49 and $header['chars2'] == 0x49) {
+			// Little endian
+			$little_endian = true;
+		} else if ($header['chars1'] == 0x4d and $header['chars2'] == 0x4d) {
+			// Big endian
+			$little_endian = false;
+		} else {
+			return false;
+		}
+
+		$bytes = substr($this->data, 4, 4);
+		$ifd_offset = unpack($little_endian ? 'VIFDoffset' : 'NIFDoffset', $bytes)['IFDoffset'];
+
+		$data = substr($this->data, $ifd_offset, 2);
+		$ifd_entries = unpack($little_endian ? 'vcount' : 'ncount', $data)['count'];
+
+		for ($i = 0; $i < $ifd_entries; $i++) {
+			$entry_offset = $ifd_offset + 2 + ($i * 12);
+
+			$data = substr($this->data, $entry_offset, 12);
+			$data = unpack($little_endian ? 'vtag/vtype/Vcount/Voffset' : 'ntag/ntype/Ncount/Noffset', $data);
+
+			switch ($data['tag']) {
+				case 0xb000:
+					$this->mpf_version = substr($this->data, $entry_offset + 12, $data['count']);
+					break;
+				case 0xb001:
+					$this->number_of_images = $data['offset'];
+					break;
+				case 0xb002:
+					$this->image_list_data = substr($this->data, $data['offset'], $data['count']);
+					break;
+				default:
+					break;
+			}
+		}
+
+		for ($i = 0; $i < $this->number_of_images; $i++) {
+			$offset = $i * 16;
+			$image_info_data = unpack('Vdata', substr($this->image_list_data, $offset, 4))['data'];
+			$image_flags = $image_info_data >> 27 & 0x1f;
+			$image_format = $image_info_data >> 24 & 0x7;
+			$image_type = $image_info_data & 0xffffff;
+
+			$image_length = unpack('Vdata', substr($this->image_list_data, $offset + 4, 4))['data'];
+			$image_start = unpack('Vdata', substr($this->image_list_data, $offset + 8, 4))['data'];
+			$dependent_image_1_entry_number = unpack('vdata', substr($this->image_list_data, $offset + 12, 2))['data'];
+			$dependent_image_2_entry_number = unpack('vdata', substr($this->image_list_data, $offset + 14, 2))['data'];
+
+			$this->images[] = [
+				'type' => $image_type,
+				'start' => $image_start,
+				'length' => $image_length,
+			];
+		}
+	}
+}
+
 class Gallery {
 	public $files_raw = [];
 	public $media = [];
