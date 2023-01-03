@@ -1002,209 +1002,210 @@ TXT;
 	}
 }
 
-if (php_sapi_name() == 'cli') {
-	$options = [
-		'help' => [
-			'short' => 'h',
-			'long' => 'help',
-			'description' => ['-h, --help', 'Show this help message'],
-		],
-		'output' => [
-			'short' => 'o:',
-			'long' => 'output-directory::',
-			'description' => ['-o <directory>, --output-directory=<directory>', 'Output directory', '(current directory by default)'],
-		],
-		'input' => [
-			'short' => 'i:',
-			'long' => 'input-directory::',
-			'description' => ['-i <directory>, --input-directory=<directory>', 'Input directory', '(current directory by default)'],
-		],
-		'recursive' => [
-			'short' => 'r',
-			'long' => 'recursive',
-			'description' => ['-r, --recursive', 'Follow subdirectories recursively'],
-		],
-		'max-depth' => [
-			'short' => 'd:',
-			'long' => 'max-depth::',
-			'description' => ['-d <depth>, --max-depth=<max-depth>', 'Maximum recursive depth, implies --recursive', '0: no limit', '1: no recursivity', '(no limit by default)'],
-		],
-		'embed-thumbnails' => [
-			'short' => 'e',
-			'long' => 'embed-thumbnails',
-			'description' => ['-e, --embed-thumbnails', 'Embed thumbnails in index.html'],
-		],
-		'thumbnail-size' => [
-			'short' => 't:',
-			'long' => 'thumbnail-size::',
-			'description' => ['-t <width>x<height>, --thumbnail-size=<width>x<height>', 'Resize thumbnails to size', '(250 x 250 by default)'],
-		],
-		'full-size' => [
-			'short' => 's:',
-			'long' => 'full-size::',
-			'description' => ['-s <width>x<height>, --full-size=<width>x<height>', 'Resize full pictures to size', '(1500 x 1500 by default)'],
-		],
-		'crop' => [
-			'short' => 'c',
-			'long' => 'crop',
-			'description' => ['-c, --crop', 'Crop thumbnails to fill size'],
-		],
-		'symlinks' => [
-			'short' => 'l',
-			'long' => 'links',
-			'description' => ['-l, --links', 'Create symlinks rather than copying the image files'],
-		],
-		'title' => [
-			'short' => 'n:',
-			'long' => 'title::',
-			'description' => ['-n <title>, --title=<title>', 'Title of the gallery'],
-		],
-		'tags' => [
-			'short' => 'x:',
-			'long' => 'tags::',
-			'description' => ['-x <Exif field>, --tags=<Exif field>', 'Read tags delimited by spaces in this Exif field (off by default, "UserComment" is a good field to use for tagging)'],
-		],
-		'script' => [
-			'long' => 'script::',
-			'description' => ['--script <file/url>', 'Include JavaScript script in the html (inline or as a URL)'],
-		],
-	];
+$options = [
+	'help' => [
+		'short' => 'h',
+		'long' => 'help',
+		'description' => ['-h, --help', 'Show this help message'],
+	],
+	'output' => [
+		'short' => 'o:',
+		'long' => 'output-directory::',
+		'description' => ['-o <directory>, --output-directory=<directory>', 'Output directory', '(current directory by default)'],
+	],
+	'input' => [
+		'short' => 'i:',
+		'long' => 'input-directory::',
+		'description' => ['-i <directory>, --input-directory=<directory>', 'Input directory', '(current directory by default)'],
+	],
+	'recursive' => [
+		'short' => 'r',
+		'long' => 'recursive',
+		'description' => ['-r, --recursive', 'Follow subdirectories recursively'],
+	],
+	'max-depth' => [
+		'short' => 'd:',
+		'long' => 'max-depth::',
+		'description' => ['-d <depth>, --max-depth=<max-depth>', 'Maximum recursive depth, implies --recursive', '0: no limit', '1: no recursivity', '(no limit by default)'],
+	],
+	'embed-thumbnails' => [
+		'short' => 'e',
+		'long' => 'embed-thumbnails',
+		'description' => ['-e, --embed-thumbnails', 'Embed thumbnails in index.html'],
+	],
+	'thumbnail-size' => [
+		'short' => 't:',
+		'long' => 'thumbnail-size::',
+		'description' => ['-t <width>x<height>, --thumbnail-size=<width>x<height>', 'Resize thumbnails to size', '(250 x 250 by default)'],
+	],
+	'full-size' => [
+		'short' => 's:',
+		'long' => 'full-size::',
+		'description' => ['-s <width>x<height>, --full-size=<width>x<height>', 'Resize full pictures to size', '(1500 x 1500 by default)'],
+	],
+	'crop' => [
+		'short' => 'c',
+		'long' => 'crop',
+		'description' => ['-c, --crop', 'Crop thumbnails to fill size'],
+	],
+	'symlinks' => [
+		'short' => 'l',
+		'long' => 'links',
+		'description' => ['-l, --links', 'Create symlinks rather than copying the image files'],
+	],
+	'title' => [
+		'short' => 'n:',
+		'long' => 'title::',
+		'description' => ['-n <title>, --title=<title>', 'Title of the gallery'],
+	],
+	'tags' => [
+		'short' => 'x:',
+		'long' => 'tags::',
+		'description' => ['-x <Exif field>, --tags=<Exif field>', 'Read tags delimited by spaces in this Exif field (off by default, "UserComment" is a good field to use for tagging)'],
+	],
+	'script' => [
+		'long' => 'script::',
+		'description' => ['--script <file/url>', 'Include JavaScript script in the html (inline or as a URL)'],
+	],
+];
 
-	$short_options = "";
-	$long_options = [];
-	foreach ($options as $option) {
+$short_options = "";
+$long_options = [];
+foreach ($options as $option) {
+	if (!empty($option['short'])) {
 		$short_options .= $option['short'];
-		$long_options[] = $option['long'];
 	}
-	$cmdline_options = getopt($short_options, $long_options);
+	$long_options[] = $option['long'];
+}
+$cmdline_options = getopt($short_options, $long_options);
 
-	if (isset($cmdline_options['h']) or isset($cmdline_options['help'])) {
-		help_message($options);
-		exit(0);
-	}
+if (isset($cmdline_options['h']) or isset($cmdline_options['help'])) {
+	help_message($options);
+	exit(0);
+}
 
-	$input_directory = '.';
-	if (!empty($cmdline_options['i'])) {
-		$input_directory = $cmdline_options['i'];
-	}
-	if (!empty($cmdline_options['input-directory'])) {
-		$input_directory = $cmdline_options['input-directory'];
-	}
+$input_directory = '.';
+if (!empty($cmdline_options['i'])) {
+	$input_directory = $cmdline_options['i'];
+}
+if (!empty($cmdline_options['input-directory'])) {
+	$input_directory = $cmdline_options['input-directory'];
+}
 
-	$output_directory = null;
-	if (!empty($cmdline_options['o'])) {
-		$output_directory = $cmdline_options['o'];
-	}
-	if (!empty($cmdline_options['output-directory'])) {
-		$output_directory = $cmdline_options['output-directory'];
-	}
+$output_directory = null;
+if (!empty($cmdline_options['o'])) {
+	$output_directory = $cmdline_options['o'];
+}
+if (!empty($cmdline_options['output-directory'])) {
+	$output_directory = $cmdline_options['output-directory'];
+}
 
-	$recursive = false;
-	if (isset($cmdline_options['r']) or isset($cmdline_options['recursive'])) {
-		$recursive = true;
-	}
+$recursive = false;
+if (isset($cmdline_options['r']) or isset($cmdline_options['recursive'])) {
+	$recursive = true;
+}
 
-	$max_depth = NULL;
-	if (isset($cmdline_options['d'])) {
-		$max_depth = $cmdline_options['d'];
-		$recursive = true;
-	}
-	if (isset($cmdline_options['max-depth'])) {
-		$max_depth = $cmdline_options['max-depth'];
-		$recursive = true;
-	}
+$max_depth = NULL;
+if (isset($cmdline_options['d'])) {
+	$max_depth = $cmdline_options['d'];
+	$recursive = true;
+}
+if (isset($cmdline_options['max-depth'])) {
+	$max_depth = $cmdline_options['max-depth'];
+	$recursive = true;
+}
 
-	$embed_thumbnails = false;
-	if (isset($cmdline_options['e']) or isset($cmdline_options['embed-thumbnails'])) {
-		$embed_thumbnails = true;
-	}
+$embed_thumbnails = false;
+if (isset($cmdline_options['e']) or isset($cmdline_options['embed-thumbnails'])) {
+	$embed_thumbnails = true;
+}
 
-	$crop_thumbnails = false;
-	if (isset($cmdline_options['c']) or isset($cmdline_options['crop'])) {
-		$crop_thumbnails = true;
-	}
+$crop_thumbnails = false;
+if (isset($cmdline_options['c']) or isset($cmdline_options['crop'])) {
+	$crop_thumbnails = true;
+}
 
-	$use_symlinks = false;
-	if (isset($cmdline_options['l']) or isset($cmdline_options['links'])) {
-		$use_symlinks = true;
-	}
+$use_symlinks = false;
+if (isset($cmdline_options['l']) or isset($cmdline_options['links'])) {
+	$use_symlinks = true;
+}
 
-	$thumbnail_size = "250x250";
-	if (isset($cmdline_options['t'])) {
-		$thumbnail_size = $cmdline_options['t'];
-	}
-	if (isset($cmdline_options['thumbnail-size'])) {
-		$thumbnail_size = $cmdline_options['thumbnail-size'];
-	}
-	if (strpos($thumbnail_size, 'x') === false) {
-		help_message($options);
-		exit(1);
-	}
-	list($thumbnail_width, $thumbnail_height) = explode('x', $thumbnail_size);
+$thumbnail_size = "250x250";
+if (isset($cmdline_options['t'])) {
+	$thumbnail_size = $cmdline_options['t'];
+}
+if (isset($cmdline_options['thumbnail-size'])) {
+	$thumbnail_size = $cmdline_options['thumbnail-size'];
+}
+if (strpos($thumbnail_size, 'x') === false) {
+	help_message($options);
+	exit(1);
+}
+list($thumbnail_width, $thumbnail_height) = explode('x', $thumbnail_size);
 
-	$title = null;
-	if (isset($cmdline_options['n'])) {
-		$title = $cmdline_options['n'];
-	}
-	if (isset($cmdline_options['title'])) {
-		$title = $cmdline_options['title'];
-	}
+$title = null;
+if (isset($cmdline_options['n'])) {
+	$title = $cmdline_options['n'];
+}
+if (isset($cmdline_options['title'])) {
+	$title = $cmdline_options['title'];
+}
 
-	$tags_field = null;
-	if (isset($cmdline_options['x'])) {
-		$tags_field = $cmdline_options['x'];
-	}
-	if (isset($cmdline_options['tags'])) {
-		$tags_field = $cmdline_options['tags'];
-	}
+$tags_field = null;
+if (isset($cmdline_options['x'])) {
+	$tags_field = $cmdline_options['x'];
+}
+if (isset($cmdline_options['tags'])) {
+	$tags_field = $cmdline_options['tags'];
+}
 
-	$script = null;
-	if (isset($cmdline_options['script'])) {
-		$script = $cmdline_options['script'];
-	}
+$script = null;
+if (isset($cmdline_options['script'])) {
+	$script = $cmdline_options['script'];
+}
 
-	if ((int)$thumbnail_width != $thumbnail_width or (int)$thumbnail_height != $thumbnail_height or $thumbnail_width == 0 or $thumbnail_height == 0) {
-		help_message($options);
-		exit(1);
-	}
+if ((int)$thumbnail_width != $thumbnail_width or (int)$thumbnail_height != $thumbnail_height or $thumbnail_width == 0 or $thumbnail_height == 0) {
+	help_message($options);
+	exit(1);
+}
 
-	$full_size = "1500x1500";
-	if (isset($cmdline_options['s'])) {
-		$full_size = $cmdline_options['s'];
-	}
-	if (isset($cmdline_options['full-size'])) {
-		$full_size = $cmdline_options['full-size'];
-	}
+$full_size = "1500x1500";
+if (isset($cmdline_options['s'])) {
+	$full_size = $cmdline_options['s'];
+}
+if (isset($cmdline_options['full-size'])) {
+	$full_size = $cmdline_options['full-size'];
+}
 
-	if (strpos($full_size, 'x') === false) {
-		help_message($options);
-		exit(1);
-	}
+if (strpos($full_size, 'x') === false) {
+	help_message($options);
+	exit(1);
+}
 
-	list($full_width, $full_height) = explode('x', $full_size);
+list($full_width, $full_height) = explode('x', $full_size);
 
-	if ((int)$full_width != $full_width or (int)$full_height != $full_height or $full_width == 0 or $full_height == 0) {
-		help_message($options);
-		exit(1);
-	}
+if ((int)$full_width != $full_width or (int)$full_height != $full_height or $full_width == 0 or $full_height == 0) {
+	help_message($options);
+	exit(1);
+}
 
-	$gallery = new Gallery();
-	$gallery->embed_thumbnails = $embed_thumbnails;
-	$gallery->crop_thumbnails = $crop_thumbnails;
-	$gallery->use_symlinks = $use_symlinks;
-	$gallery->thumbnail_width = $thumbnail_width;
-	$gallery->thumbnail_height = $thumbnail_height;
-	$gallery->tags_field = $tags_field;
-	$gallery->script = $script;
-	$gallery->image_width = $full_width;
-	$gallery->image_height = $full_height;
-	$gallery->read_directory($input_directory, $recursive, $max_depth);
-	if ($title) {
-		$gallery->title = $title;
-	}
+$gallery = new Gallery();
+$gallery->embed_thumbnails = $embed_thumbnails;
+$gallery->crop_thumbnails = $crop_thumbnails;
+$gallery->use_symlinks = $use_symlinks;
+$gallery->thumbnail_width = $thumbnail_width;
+$gallery->thumbnail_height = $thumbnail_height;
+$gallery->tags_field = $tags_field;
+$gallery->script = $script;
+$gallery->image_width = $full_width;
+$gallery->image_height = $full_height;
+$gallery->read_directory($input_directory, $recursive, $max_depth);
+if ($title) {
+	$gallery->title = $title;
+}
 
-	if ($output_directory) {
-		Log::stderr(<<<EOT
+if ($output_directory) {
+	Log::stderr(<<<EOT
 .	gallery index
 #	gallery thumbnail
 %	image thumbnail
@@ -1213,18 +1214,6 @@ if (php_sapi_name() == 'cli') {
 
 
 EOT
-);
-		$gallery->write($output_directory, $recursive, $max_depth);
-	}
-} else {
-	$request_path_relative = '.'.urldecode(str_replace(dirname($_SERVER['SCRIPT_NAME']), '', $_SERVER['REQUEST_URI']));
-	if (file_exists($request_path_relative) and !is_dir($request_path_relative)) {
-		$photo = new Photo($request_path_relative);
-		header("Content-Type: image/jpeg");
-		readfile($request_path_relative);
-	} else {
-		$gallery = new Gallery();
-		$gallery->read_directory($request_path_relative);
-		echo $gallery->html();
-	}
+	);
+	$gallery->write($output_directory, $recursive, $max_depth);
 }
