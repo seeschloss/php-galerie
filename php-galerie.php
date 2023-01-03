@@ -1065,9 +1065,8 @@ if (php_sapi_name() == 'cli') {
 			'description' => ['-x <Exif field>, --tags=<Exif field>', 'Read tags delimited by spaces in this Exif field (off by default, "UserComment" is a good field to use for tagging)'],
 		],
 		'script' => [
-			'short' => 's:',
 			'long' => 'script::',
-			'description' => ['-s <file/url>, --script <file/url>', 'Include JavaScript script in the html (inline or as a URL)'],
+			'description' => ['--script <file/url>', 'Include JavaScript script in the html (inline or as a URL)'],
 		],
 	];
 
@@ -1160,9 +1159,6 @@ if (php_sapi_name() == 'cli') {
 	}
 
 	$script = null;
-	if (isset($cmdline_options['s'])) {
-		$script = $cmdline_options['s'];
-	}
 	if (isset($cmdline_options['script'])) {
 		$script = $cmdline_options['script'];
 	}
