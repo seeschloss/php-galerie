@@ -10,7 +10,7 @@ class Video extends Media {
 		return $classes;
 	}
 
-	function html_thumbnail($width, $height, $crop_thumbnail = false, $embed_thumbnail = false) {
+	function html_thumbnail($width, $height, $crop_thumbnail = false, $embed_thumbnail = false, $target_width = null, $target_height = null) {
 		$extra = '';
 		if (file_exists($this->thumbnail_file)) {
 			$extra .= ' poster="'.htmlspecialchars(basename($this->thumbnail_file)).'"';
@@ -92,16 +92,17 @@ class Photo extends Media {
 		$this->tags = array_keys($tags);
 	}
 
-	function html_thumbnail($width, $height, $crop_thumbnail = false, $embed_thumbnail = false) {
+	function html_thumbnail($width, $height, $crop_thumbnail = false, $embed_thumbnail = false, $target_width = null, $target_height = null) {
 		$html = <<<HTML
 	<figure {$this->html_attributes()}>
-		<a href="{$this->url_original()}"><img src="{$this->url_size($width, $height, $crop_thumbnail, $embed_thumbnail)}" /></a>
-		<figcaption><a href="{$this->url_original()}">{$this->title()}</a></figcaption>
+		<a href="{$this->url_size($target_width, $target_height)}"><img src="{$this->url_size($width, $height, $crop_thumbnail, $embed_thumbnail)}" /></a>
+		<figcaption><a href="{$this->url_size($target_width, $target_height)}">{$this->title()}</a></figcaption>
 	</figure>
 
 HTML;
 
 		$this->files[basename($this->original_path)] = ['path' => $this->path_original()];
+		$this->files[basename($this->path_size($target_width, $target_height))] = ['path' => $this->generate_size($target_width, $target_height)];
 
 		if (!$embed_thumbnail) {
 			$this->files[$this->url_size($width, $height, $crop_thumbnail, false)] = ['data' => $this->generate_size($width, $height, $crop_thumbnail)];
@@ -512,6 +513,8 @@ HTML;
 							$gallery->thumbnail_height = $this->thumbnail_height;
 							$gallery->tags_field = $this->tags_field;
 							$gallery->script = $this->script;
+							$gallery->image_width = $this->image_width;
+							$gallery->image_height = $this->image_height;
 							$gallery->read_directory($subdirectory, $recursive, $max_depth - 1);
 							$galleries[] = $gallery;
 						}
@@ -713,11 +716,12 @@ CSS;
 HTML;
 
 		foreach ($this->galleries as $gallery) {
+			Log::stderr("#");
 			$html .= $gallery->html_thumbnail($this->thumbnail_width, $this->thumbnail_height);
 		}
 
 		foreach ($this->media as $media) {
-			$html .= $media->html_thumbnail($this->thumbnail_width, $this->thumbnail_height, $this->crop_thumbnails, $this->embed_thumbnails);
+			$html .= $media->html_thumbnail($this->thumbnail_width, $this->thumbnail_height, $this->crop_thumbnails, $this->embed_thumbnails, $this->image_width, $this->image_height);
 		}
 
 		$html .= <<<HTML
