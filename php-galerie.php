@@ -27,6 +27,8 @@ HTML;
 
 		$this->files[basename($this->original_path)] = ['path' => $this->path_original()];
 
+		Log::stderr("%");
+
 		return $html;
 	}
 
@@ -824,7 +826,7 @@ HTML;
 		if (!file_exists($output_directory)) {
 			mkdir($output_directory, 0777, true);
 		}
-		Log::stderr("Writing gallery '{$output_directory}'");
+		Log::stderr("Writing gallery '{$output_directory}': ");
 		file_put_contents($output_directory."/index.html", $this->html());
 		Log::stderr(".");
 		foreach ($this->media as $media) {
@@ -1048,7 +1050,6 @@ if (php_sapi_name() == 'cli') {
 		$thumbnail_size = $cmdline_options['thumbnail-size'];
 	}
 	if (strpos($thumbnail_size, 'x') === false) {
-		var_dump($thumbnail_size);
 		help_message($options);
 		exit(1);
 	}
@@ -1092,7 +1093,6 @@ if (php_sapi_name() == 'cli') {
 	}
 
 	if (strpos($full_size, 'x') === false) {
-		var_dump($full_size);
 		help_message($options);
 		exit(1);
 	}
@@ -1120,6 +1120,16 @@ if (php_sapi_name() == 'cli') {
 	}
 
 	if ($output_directory) {
+		Log::stderr(<<<EOT
+.	gallery index
+#	gallery thumbnail
+%	image thumbnail
++	image full resolution
+=	image already in cache
+
+
+EOT
+);
 		$gallery->write($output_directory, $recursive, $max_depth);
 	}
 } else {
