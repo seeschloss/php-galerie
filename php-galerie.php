@@ -83,11 +83,9 @@ class Photo extends Media {
 	function read_tags($field) {
 		$tags = [];
 		$this->read_exif();
-		if (!empty($this->exif['COMPUTED'][$field])) {
-			foreach (explode(' ', $exif['COMPUTED'][$field]) as $tag) {
-				$tag = trim($tag);
-				$tags[$tag] = $tag;
-			}
+		if (!empty($this->exif['COMPUTED'][$field])) foreach (explode(' ', $this->exif['COMPUTED'][$field]) as $tag) {
+			$tag = trim($tag);
+			$tags[$tag] = $tag;
 		}
 		$this->tags = array_keys($tags);
 	}
