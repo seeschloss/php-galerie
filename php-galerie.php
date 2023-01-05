@@ -144,21 +144,61 @@ HTML;
 			$width = (int)$width;
 			$height = (int)$height;
 
+			$width_dest = (int)$width;
+			$height_dest = (int)$height;
+
 			$r = null;
 
 			$exif_thumbnail = exif_thumbnail($this->original_path, $exif_thumbnail_width, $exif_thumbnail_height, $exif_thumbnail_type);
-			if ($exif_thumbnail and $exif_thumbnail_width >= $width and $exif_thumbnail_height >= $height) {
+			if ($exif_thumbnail and $exif_thumbnail_width >= $width_dest and $exif_thumbnail_height >= $height_dest) {
 				$r = imagecreatefromstring($exif_thumbnail);
 				$data_orig = $exif_thumbnail;
-				$width_orig = $exif_thumbnail_width;
-				$height_orig = $exif_thumbnail_height;
+				list($width_orig, $height_orig) = getimagesize($this->original_path);
+				// Thumbnails aren't always at the same size, and might be padded with borders for some stupid reason
+				// let's crop them to the original ratio
+
+				$original_ratio = $height_orig/$width_orig;
+				$thumbnail_ratio = $exif_thumbnail_height/$exif_thumbnail_width;
+
+				if ($original_ratio > $thumbnail_ratio) {
+					$cropped_thumbnail_width = $exif_thumbnail_width;
+					$cropped_thumbnail_height = floor($exif_thumbnail_width * $original_ratio);
+
+					if ($cropped_thumbnail_width >= $width_dest and $cropped_thumbnail_height >= $height_dest) {
+						$r_resized = imagecreatetruecolor($cropped_thumbnail_width, $cropped_thumbnail_height);
+						imagecopy($r_resized, $r, 0, 0, ($exif_thumbnail_width - $cropped_thumbnail_width)/2, 0, $cropped_thumbnail_width, $cropped_thumbnail_height);
+						$r = $r_resized;
+
+						$width_orig = $cropped_thumbnail_width;
+						$height_orig = $cropped_thumbnail_height;
+					} else {
+						// Looks like it wasn't big enough after cropping...
+						$r = null;
+					}
+				} else if ($original_ratio < $thumbnail_ratio) {
+					$cropped_thumbnail_width = $exif_thumbnail_width;
+					$cropped_thumbnail_height = floor($exif_thumbnail_width * $original_ratio);
+
+					if ($cropped_thumbnail_width >= $width_dest and $cropped_thumbnail_height >= $height_dest) {
+						$r_resized = imagecreatetruecolor($cropped_thumbnail_width, $cropped_thumbnail_height);
+						imagecopy($r_resized, $r, 0, 0, 0, ($exif_thumbnail_height - $cropped_thumbnail_height)/2, $cropped_thumbnail_width, $cropped_thumbnail_height);
+						$r = $r_resized;
+
+						$width_orig = $cropped_thumbnail_width;
+						$height_orig = $cropped_thumbnail_height;
+					} else {
+						// Looks like it wasn't big enough after cropping...
+						$r = null;
+					}
+				}
 			}
 
 			if (!$r) {
+				$this->read_exif();
 				if (isset($this->exif['PreviewImageSize']) and count($this->exif['PreviewImageSize']) == 2) {
 					$preview_image_size_width = $this->exif['PreviewImageSize'][1];
 					$preview_image_size_height = $this->exif['PreviewImageSize'][0];
-					if ($preview_image_size_width >= $width and $preview_image_size_height >= $height) {
+					if ($preview_image_size_width >= $width_dest and $preview_image_size_height >= $height_dest) {
 						$preview_image = $this->preview_image();
 						if ($preview_image) {
 							$data_orig = $preview_image;
@@ -176,26 +216,65 @@ HTML;
 				list($width_orig, $height_orig) = getimagesize($this->original_path);
 			}
 
+			$this->read_exif();
+			if (isset($this->exif['Orientation'])) switch ($this->exif['Orientation']) {
+				case 1:
+					// Nothing to do
+					break;
+				case 3:
+					imagesetinterpolation($r,  IMG_NEAREST_NEIGHBOUR);
+					$r = imagerotate($r, 180, 0);
+					$data_orig = null;
+					break;
+				case 6:
+					imagesetinterpolation($r,  IMG_NEAREST_NEIGHBOUR);
+					$r = imagerotate($r, 270, 0);
+					$data_orig = null;
+
+					$width_orig_2 = $width_orig;
+					$width_orig = $height_orig;
+					$height_orig = $width_orig_2;
+
+					$width_dest_2 = $width_dest;
+					$width_dest = $height_dest;
+					$height_dest = $width_dest_2;
+
+					break;
+				case 8:
+					imagesetinterpolation($r,  IMG_NEAREST_NEIGHBOUR);
+					$r = imagerotate($r, 90, 0);
+					$data_orig = null;
+
+					$width_orig_2 = $width_orig;
+					$width_orig = $height_orig;
+					$height_orig = $width_orig_2;
+
+					$width_dest_2 = $width_dest;
+					$width_dest = $height_dest;
+					$height_dest = $width_dest_2;
+					break;
+			}
+
 			if ($crop) {
 				$smallest_edge = min($width_orig, $height_orig);
 
-				$r_resized = imagecreatetruecolor($width, $height);
-				imagecopyresampled($r_resized, $r, 0, 0, ($width_orig - $smallest_edge)/2, ($height_orig - $smallest_edge)/2, $width, $height, $smallest_edge, $smallest_edge);
+				$r_resized = imagecreatetruecolor($width_dest, $height_dest);
+				imagecopyresampled($r_resized, $r, 0, 0, ($width_orig - $smallest_edge)/2, ($height_orig - $smallest_edge)/2, $width_dest, $height_dest, $smallest_edge, $smallest_edge);
 				imagejpeg($r_resized, $this->path_size($width, $height, $crop), 95);
 			} else {
 				$ratio_orig = $width_orig/$height_orig;
 
-				$width_proportional = $width;
-				$height_proportional = $height;
+				$width_proportional = $width_dest;
+				$height_proportional = $height_dest;
 
-				if ($width/$height > $ratio_orig) {
-					$width_proportional = $height * $ratio_orig;
+				if ($width_dest/$height_dest > $ratio_orig) {
+					$width_proportional = $height_dest * $ratio_orig;
 				} else {
-					$height_proportional = $width / $ratio_orig;
+					$height_proportional = $width_dest / $ratio_orig;
 				}
 
 				$r_resized = imagecreatetruecolor($width_proportional, $height_proportional);
-				if ($width_proportional != $width_orig or $height_proportional != $height_orig) {
+				if ($width_proportional != $width_orig or $height_proportional != $height_orig or !$data_orig) {
 					imagecopyresampled($r_resized, $r, 0, 0, 0, 0, $width_proportional, $height_proportional, $width_orig, $height_orig);
 					imagejpeg($r_resized, $this->path_size($width, $height, $crop), 95);
 				} else {
@@ -318,10 +397,15 @@ class MPF {
 	}
 
 	function parse() {
-		$header = unpack('c2chars/vTIFF_ID', substr($this->data, 0, 4));
+		$header_data = substr($this->data, 0, 4);
+		if (strlen($header_data) < 4) {
+			return false;
+		}
+
+		$header = @unpack('c2chars/vTIFF_ID', $header_data);
 
 		// 0x2a is TIFF's magic number
-		if ($header['TIFF_ID'] != 0x2a) {
+		if (!is_array($header) or $header['TIFF_ID'] != 0x2a) {
 			return false;
 		}
 
