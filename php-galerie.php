@@ -713,6 +713,13 @@ HTML;
 			justify-items: center;
 			align-items: center;
 			margin: 0;
+			max-width: 100%;
+			height: 100%;
+		}
+
+		#popup a {
+			max-width: 100%;
+			height: 100%;
 		}
 
 		#popup img {
