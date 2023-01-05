@@ -953,10 +953,10 @@ HTML;
 						} else {
 							copy($file['path'], $file_output_path);
 						}
-						Log::stderr(".");
+						Log::stderr("+");
 					} else if (isset($file['data'])) {
 						file_put_contents($file_output_path, $file['data']);
-						Log::stderr(".");
+						Log::stderr("+");
 					}
 				}
 			}
