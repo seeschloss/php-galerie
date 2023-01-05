@@ -102,6 +102,8 @@ class Photo extends Media {
 HTML;
 
 		$this->files[basename($this->original_path)] = ['path' => $this->path_original()];
+
+		$this->generate_size($target_width, $target_height);
 		$this->files[str_replace(dirname($this->original_path)."/", "", $this->path_size($target_width, $target_height))] = ['path' => $this->path_size($target_width, $target_height)];
 
 		if (!$embed_thumbnail) {
