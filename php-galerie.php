@@ -1035,6 +1035,8 @@ HTML;
 				$media_per_date[$date][] = $media;
 			}
 
+			ksort($media_per_date, SORT_NUMERIC);
+
 			foreach ($media_per_date as $date => $media) {
 				$gallery = new Gallery();
 				$gallery->parent = $this;
