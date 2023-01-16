@@ -307,6 +307,19 @@ HTML;
 
 		return $path_size;
 	}
+
+	function date() {
+		$this->read_exif();
+		if (isset($this->exif['DateTime'])) {
+			return strtotime($this->exif['DateTime']);
+		} else if (isset($this->exif['DateTimeOriginal'])) {
+			return strtotime($this->exif['DateTimeOriginal']);
+		} else if (isset($this->exif['DateTimeDigitized'])) {
+			return strtotime($this->exif['DateTimeDigitized']);
+		}
+
+		return parent::date();
+	}
 }
 
 class Media {
@@ -380,6 +393,10 @@ class Media {
 
 	function html_thumbnail($width, $height, $crop_thumbnail = false, $embed_thumbnail = false) {
 		return "";
+	}
+
+	function date() {
+		return filemtime($this->original_path);
 	}
 }
 
@@ -489,6 +506,7 @@ class Gallery {
 	public $script = "";
 	public $image_width = 1500;
 	public $image_height = 1500;
+	public $per_date = false;
 
 	static function is_gallery($directory) {
 		if (file_exists($directory."/index.html")) {
@@ -626,7 +644,7 @@ HTML;
 		return "";
 	}
 
-	function html() {
+	function css() {
 		$css = <<<CSS
 		body {
 			display: grid;
@@ -787,36 +805,11 @@ CSS;
 CSS;
 		}
 
-		$link_parent = "";
-		if ($this->parent) {
-			$this->parent->url = '..';
-			$link_parent = $this->parent->html_thumbnail($this->thumbnail_width, $this->thumbnail_height);
-		}
+		return $css;
+	}
 
-		$html = <<<HTML
-<!DOCTYPE html>
-<html class="php-galerie" data-thumbnail-src="{$this->thumbnail_base64()}">
-<head>
-	<title>{$this->title}</title>
-	<meta charset="utf-8" />
-	<style>
-		{$css}
-	</style>
-</head>
-<body>
-	<div id="header">{$link_parent}<h1>{$this->title}</h1></div>
-HTML;
-
-		foreach ($this->galleries as $gallery) {
-			Log::stderr("#");
-			$html .= $gallery->html_thumbnail($this->thumbnail_width, $this->thumbnail_height);
-		}
-
-		foreach ($this->media as $media) {
-			$html .= $media->html_thumbnail($this->thumbnail_width, $this->thumbnail_height, $this->crop_thumbnails, $this->embed_thumbnails, $this->image_width, $this->image_height);
-		}
-
-		$html .= <<<HTML
+	function javascript() {
+		$js = <<<JS
 	<script>
 		function bodyKeyDownHandler(e) {
 			switch (e.keyCode) {
@@ -972,22 +965,109 @@ HTML;
 			};
 		}
 	</script>
-HTML;
+JS;
 
 	if ($this->script) {
 		if (file_exists($this->script)) {
-			$js = file_get_contents($this->script);
-			$html .= <<<HTML
+			$js_content = file_get_contents($this->script);
+			$js .= <<<HTML
 	<script>
-		{$js}
+		{$js_content}
 	</script>
 HTML;
 		} else {
-			$html .= <<<HTML
+			$js .= <<<HTML
 	<script src="{$this->script}"></script>
 HTML;
 		}
 	}
+
+		return $js;
+	}
+
+	function html() {
+		$link_parent = "";
+		if ($this->parent) {
+			$this->parent->url = '..';
+			$link_parent = $this->parent->html_thumbnail($this->thumbnail_width, $this->thumbnail_height);
+		}
+
+		$html = <<<HTML
+<!DOCTYPE html>
+<html class="php-galerie"
+	data-thumbnail-src="{$this->thumbnail_base64()}"
+	data-thumbnail-height="{$this->thumbnail_height}"
+	data-thumbnail-width="{$this->thumbnail_width}"
+	data-image-height="{$this->image_height}"
+	data-image-width="{$this->image_width}"
+	data-embed-thumbnails="{$this->embed_thumbnails}"
+	data-crop-thumbnails="{$this->crop_thumbnails}"
+	data-use-symlinks="{$this->use_symlinks}"
+	data-tags-field="{$this->tags_field}"
+	>
+<head>
+	<title>{$this->title}</title>
+	<meta charset="utf-8" />
+	<style>
+		{$this->css()}
+	</style>
+</head>
+<body>
+	<div id="header">{$link_parent}<h1>{$this->title}</h1></div>
+HTML;
+
+		if ($this->per_date and !$this->parent) {
+			// If we're creating a new date-based structure, then let's merge all
+			// found media, and recreate 'virtual' galleries based on dates.
+
+			$all_media = $this->media;
+			foreach ($this->galleries as $gallery) {
+				$all_media += $gallery->media;
+			}
+			$this->galleries = [];
+
+			$media_per_date = [];
+			foreach ($all_media as $media) {
+				$date = strtotime("today midnight", $media->date());
+				if (!isset($media_per_date[$date])) {
+					$media_per_date[$date] = [];
+				}
+				$media_per_date[$date][] = $media;
+			}
+
+			foreach ($media_per_date as $date => $media) {
+				$gallery = new Gallery();
+				$gallery->parent = $this;
+				$gallery->embed_thumbnails = $this->embed_thumbnails;
+				$gallery->crop_thumbnails = $this->crop_thumbnails;
+				$gallery->use_symlinks = $this->use_symlinks;
+				$gallery->thumbnail_width = $this->thumbnail_width;
+				$gallery->thumbnail_height = $this->thumbnail_height;
+				$gallery->tags_field = $this->tags_field;
+				$gallery->script = $this->script;
+				$gallery->image_width = $this->image_width;
+				$gallery->image_height = $this->image_height;
+
+				$gallery->media = $media;
+				$gallery->url = date('Y-m-d', $date);
+				$gallery->title = date('Y-m-d', $date);
+				$gallery->thumbnail = $media[0];
+
+				$this->galleries[] = $gallery;
+				$html .= $gallery->html_thumbnail($this->thumbnail_width, $this->thumbnail_height);
+			}
+		} else {
+			foreach ($this->galleries as $gallery) {
+				Log::stderr("#");
+				$html .= $gallery->html_thumbnail($this->thumbnail_width, $this->thumbnail_height);
+			}
+
+			foreach ($this->media as $media) {
+				$html .= $media->html_thumbnail($this->thumbnail_width, $this->thumbnail_height, $this->crop_thumbnails, $this->embed_thumbnails, $this->image_width, $this->image_height);
+			}
+		}
+
+		$html .= $this->javascript();
 
 		$html .= <<<HTML
 </body>
@@ -1158,6 +1238,10 @@ $options = [
 		'long' => 'script::',
 		'description' => ['--script <file/url>', 'Include JavaScript script in the html (inline or as a URL)'],
 	],
+	'per-date' => [
+		'long' => 'per-date',
+		'description' => ['--per-date', 'Create date-based sub-galleries instead of using the oridinal forlder structure'],
+	],
 ];
 
 $short_options = "";
@@ -1280,6 +1364,11 @@ if ((int)$full_width != $full_width or (int)$full_height != $full_height or $ful
 	exit(1);
 }
 
+$per_date = false;
+if (isset($cmdline_options['per-date'])) {
+	$per_date = true;
+}
+
 $gallery = new Gallery();
 $gallery->embed_thumbnails = $embed_thumbnails;
 $gallery->crop_thumbnails = $crop_thumbnails;
@@ -1290,6 +1379,7 @@ $gallery->tags_field = $tags_field;
 $gallery->script = $script;
 $gallery->image_width = $full_width;
 $gallery->image_height = $full_height;
+$gallery->per_date = $per_date;
 $gallery->read_directory($input_directory, $recursive, $max_depth);
 if ($title) {
 	$gallery->title = $title;
