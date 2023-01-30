@@ -1,6 +1,6 @@
 # php-galerie
 
-php-galerie is a static image gallery generator written in PHP, that fits in one reasonably-sized file without any particular dependencies.
+php-galerie is a static image gallery generator written in PHP, that fits in one reasonably-sized file without any particular dependencies (and minimal JavaScript).
 
 Called without options, it will generate in-place an `index.html` file from the photos in the current folder, as well as a `.cache` folder containing 250px thumbnails and 1500px versions of the images.
 
@@ -8,9 +8,16 @@ The actual picture files are not modified and only `index.html` and `.cache` are
 
 Various options control the output, including recursive traversing of directories, size of thumbnails and images, whether files are copied or symlinked, etc.
 
+<img src="https://user-images.githubusercontent.com/1394204/215459365-a4e01377-2185-420b-8dc2-a468f97da135.png" width="300" />  <img src="https://user-images.githubusercontent.com/1394204/215459362-7b863038-7baf-413c-869a-213115ddfe00.png" width="300" />
+
+The default theme is a neutral (some could call it "depressing") grey, but it's easy enough to style. I'm no graphist so I'll leave this to you.
+
+
 ## Dependencies
 
 PHP >= 7.0 with the `gd` extension and optionally the `exif` one. Might even work on PHP 5 but no guarantees.
+
+What I *can* guarantee is that it's never going to become a bloated beast of a projet with a billion dependencies, precise version requirements, build tools and fancy new technology. It's just something that I want to keep working for the years to come without constant maintenance. Upload your pictures, run the tool and you're good. And even if it ever breaks, the already-generated galleries and their good old plain HTML will still be there.
 
 ## Installation
 
