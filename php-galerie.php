@@ -301,6 +301,7 @@ HTML;
 
 		if (!file_exists($cache_directory)) {
 			mkdir($cache_directory, 0777, true);
+			file_put_contents($cache_directory.'/CACHEDIR.TAG', 'Signature: 8a477f597d28d172789f06886806bc55');
 		}
 
 		$filename = basename($this->original_path);
