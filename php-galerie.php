@@ -214,6 +214,10 @@ HTML;
 				list($width_orig, $height_orig) = getimagesize($this->original_path);
 			}
 
+			if (!$r) {
+				return null;
+			}
+
 			$this->read_exif();
 			if (isset($this->exif['Orientation'])) switch ($this->exif['Orientation']) {
 				case 1:
@@ -256,9 +260,12 @@ HTML;
 			if ($crop) {
 				$smallest_edge = min($width_orig, $height_orig);
 
-				$r_resized = imagecreatetruecolor($width_dest, $height_dest);
-				imagecopyresampled($r_resized, $r, 0, 0, ($width_orig - $smallest_edge)/2, ($height_orig - $smallest_edge)/2, $width_dest, $height_dest, $smallest_edge, $smallest_edge);
-				imagejpeg($r_resized, $this->path_size($width, $height, $crop), 95);
+				if ($r_resized = imagecreatetruecolor($width_dest, $height_dest)) {
+					imagecopyresampled($r_resized, $r, 0, 0, ($width_orig - $smallest_edge)/2, ($height_orig - $smallest_edge)/2, $width_dest, $height_dest, $smallest_edge, $smallest_edge);
+					imagejpeg($r_resized, $this->path_size($width, $height, $crop), 95);
+				} else {
+					return null;
+				}
 			} else {
 				$ratio_orig = $width_orig/$height_orig;
 
@@ -271,10 +278,13 @@ HTML;
 					$height_proportional = $width_dest / $ratio_orig;
 				}
 
-				$r_resized = imagecreatetruecolor($width_proportional, $height_proportional);
 				if ($width_proportional != $width_orig or $height_proportional != $height_orig or !$data_orig) {
-					imagecopyresampled($r_resized, $r, 0, 0, 0, 0, $width_proportional, $height_proportional, $width_orig, $height_orig);
-					imagejpeg($r_resized, $this->path_size($width, $height, $crop), 95);
+					if ($r_resized = imagecreatetruecolor($width_proportional, $height_proportional)) {
+						imagecopyresampled($r_resized, $r, 0, 0, 0, 0, $width_proportional, $height_proportional, $width_orig, $height_orig);
+						imagejpeg($r_resized, $this->path_size($width, $height, $crop), 95);
+					} else {
+						return null;
+					}
 				} else {
 					file_put_contents($this->path_size($width, $height, $crop), $data_orig);
 				}
