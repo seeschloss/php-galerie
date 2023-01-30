@@ -147,6 +147,9 @@ HTML;
 
 			$r = null;
 
+			$exif_thumbnail_width = 0;
+			$exif_thumbnail_height = 0;
+			$exif_thumbnail_type = '';
 			$exif_thumbnail = exif_thumbnail($this->original_path, $exif_thumbnail_width, $exif_thumbnail_height, $exif_thumbnail_type);
 			if ($exif_thumbnail and $exif_thumbnail_width >= $width_dest and $exif_thumbnail_height >= $height_dest) {
 				$r = imagecreatefromstring($exif_thumbnail);
@@ -273,9 +276,9 @@ HTML;
 				$height_proportional = $height_dest;
 
 				if ($width_dest/$height_dest > $ratio_orig) {
-					$width_proportional = $height_dest * $ratio_orig;
+					$width_proportional = floor($height_dest * $ratio_orig);
 				} else {
-					$height_proportional = $width_dest / $ratio_orig;
+					$height_proportional = floor($width_dest / $ratio_orig);
 				}
 
 				if ($width_proportional != $width_orig or $height_proportional != $height_orig or !$data_orig) {
@@ -1186,6 +1189,20 @@ TXT;
 	}
 }
 
+function check_extensions() {
+	if (!function_exists('exif_thumbnail')) {
+		function exif_thumbnail() {
+			return null;
+		}
+	}
+
+	if (!function_exists('exif_read_data')) {
+		function exif_read_data() {
+			return [];
+		}
+	}
+}
+
 $options = [
 	'help' => [
 		'short' => 'h',
@@ -1253,7 +1270,7 @@ $options = [
 	],
 	'per-date' => [
 		'long' => 'per-date',
-		'description' => ['--per-date', 'Create date-based sub-galleries instead of using the oridinal forlder structure'],
+		'description' => ['--per-date', 'Create date-based sub-galleries instead of using the original folder structure'],
 	],
 ];
 
@@ -1381,6 +1398,8 @@ $per_date = false;
 if (isset($cmdline_options['per-date'])) {
 	$per_date = true;
 }
+
+check_extensions();
 
 $gallery = new Gallery();
 $gallery->embed_thumbnails = $embed_thumbnails;
